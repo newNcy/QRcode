@@ -1,6 +1,7 @@
 #ifndef _REED_SOLOMON_H
 #define _REED_SOLOMON_H
 #include <stdio.h>
+#include <malloc.h>
 /* 
  * 伽罗华域 
  */
@@ -21,13 +22,15 @@ typedef struct _gf_2_8_
  */
 void gf_make(GF *  gf);
 
+void poly_view(char *name,unsigned char *p,int l);
+
 /* 
  * 生成 生成多项式
  * @ gf 所属的域
  * @ gen 存储生成多项式
  * @ len 纠错码个数，即多项式长度-1(首项系数指数为恒0,不存储)
  */
-void gf_make_generator_poly(GF * gf, char gen[],unsigned int len);
+void gf_make_generator_poly(GF * gf,unsigned char gen[],unsigned int len);
 
 /*
  * 生成所罗门纠错码
@@ -39,5 +42,5 @@ void gf_make_generator_poly(GF * gf, char gen[],unsigned int len);
  * @ elen 纠错码个数
  * @ g g(x) 多项式(生成多项式)
  */
-void reed_solomon(GF * gf, char  msg[], int moff, int mlen, char err[],int elen,char g[]); 
+void reed_solomon(GF * gf, unsigned char  msg[], int mlen, unsigned char err[],int elen,unsigned char g[]); 
 #endif

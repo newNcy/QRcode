@@ -43,3 +43,37 @@ for j in range(1,len(trs)):
 
 print('};')
 
+
+tb = BeautifulSoup(requests.get('http://www.thonky.com/qr-code-tutorial/structure-final-message').text,'html.parser').find_all('table')[5];
+
+for tr in tb.find_all('tr'):
+    tds =  tr.find_all('td')
+    if len(tds) > 1:
+        print(tds[1].string+', ',end = '')
+        
+
+html = requests.get('http://www.thonky.com/qr-code-tutorial/format-version-tables').text
+soup = BeautifulSoup(html,'html.parser');
+tb = soup.find_all('tr')
+td = soup.find_all('td')
+
+
+
+print("")
+
+mn = 0;
+ec = 1;
+for i in range(2,(32)*3+2):
+    if ((i-1)%3==0):
+        print("        \"%s\","%(td[i].string))
+        mn = mn+1
+        if mn%8 == 0:
+            ec = ec +1
+            print("")
+v = 7
+for td in tb:
+    tr = td.find_all('td')
+    if  len(tr) > 1 and tr[1].string :
+        #print(tr[0].string, end = ', ')
+        print("    \"%s\", // v%d"%(tr[1].string,v))
+        v = v+1

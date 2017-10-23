@@ -23,11 +23,22 @@ void qr_view(QR qr)
     for (int i = 0;i<qr->size; i++) {
         printf("\033[47m  \033[0m");
         for (int j = 0; j< qr->size; j++) {
-            if (qr->matrix[qr_XY(qr,j,i)] == WHITE_MODULE) {
-                printf("\033[47m  \033[0m");
-            }else if(qr->matrix[qr_XY(qr,j,i)] == BLACK_MODULE){
-                printf("  ");
-            }else if (qr->matrix[qr_XY(qr,j,i)] == NONE_MODULE) {
+            unsigned module = qr->matrix[qr_XY(qr,j,i)];
+            if (MODULE_GET_TYPE(module) == WHITE_MODULE) {
+                unsigned char v = MODULE_GET_VALUE(module);
+                if (v!=0)
+                    printf("\033[47;30m%2d\033[0m",v);
+                else 
+                    printf("\033[47m  \033[0m");
+            }else if(MODULE_GET_TYPE(module) == BLACK_MODULE){
+                unsigned char v = MODULE_GET_VALUE(module);
+                if (v!=0)
+                    printf("\033[37m%2d\033[0m",v);
+                else 
+                    printf("  ");
+            }else if (MODULE_GET_TYPE(module) == RESERVE_MODULE) {
+                printf("\033[43m  \033[0m");
+            }else if (MODULE_GET_TYPE(module) == NONE_MODULE) {
                 printf("\033[40m  \033[0m");
             }
         }
@@ -58,11 +69,14 @@ void bin(char *name, unsigned char b[],int l)
 /*
  * 取位运算
  */
-char bit(unsigned char byte, int ndx)
-{
-    return (byte & (1<<(7-ndx)))>>(7-ndx);
-}
 
+#define bit(W,N) (((W)>>(sizeof(W)*8-1-(N)))&1)
+/*
+char bit(unsigned char word, int ndx) 
+{
+    return (word>>((sizeof(word)*8-1)-ndx))&1;
+}
+*/
 /*
  * 转大小端
  */
@@ -80,13 +94,13 @@ void turn_endian(char b[],int l)
 void qr_encode_bytes(QR qr, char bytes[])
 {
     short len = strlen(bytes);
-    bin("bytes",(unsigned char *)bytes,len);
-    bin("len",(unsigned char*)&len,2);
+    //bin("bytes",(unsigned char *)bytes,len);
+    //bin("len",(unsigned char*)&len,2);
     /* 
      * 码字长度 = 版本容量 + 4bit模式指示位 + 8bit信息长度(版本10以及以上为16bit)
      */
     int * ecp = ec_parameter[QR_VERSION(qr->ver)][qr->ec];
-    printf("max:%d\n",qr->data_max);
+    //printf("max:%d\n",qr->data_max);
     memset(qr->data,0,qr->data_max);
     int index = 0;
     qr->data[index] = 64; // 0100 0000 *0100是utf-8字节编码模式
@@ -95,6 +109,7 @@ void qr_encode_bytes(QR qr, char bytes[])
      * v10以及以上的长度用16个bit存储
      */
     if (qr->ver >= 10) {
+        turn_endian((char*)&len,2);
         qr->data[index] = (qr->data[index] & 0xf0) | ((len>>12)&0x0f);
         index++;
         qr->data[index++] = ((len&(0x0f<<8))>>4) | ((len&0xf0)>>4);
@@ -124,7 +139,7 @@ void qr_encode_bytes(QR qr, char bytes[])
         qr->data[index++] = pad[i%2];
     }
 
-    bin("encoded",qr->data, index);
+    //bin("encoded",qr->data, index);
  
 }
 
@@ -136,7 +151,7 @@ void qr_error_correct_interleave(QR qr)
 {
    
     int * ecp = ec_parameter[QR_VERSION(qr->ver)][qr->ec];
-    printf("%d:%d:%d:%d:%d\n",ecp[0],ecp[1],ecp[2],ecp[3],ecp[4]);
+    //printf("%d:%d:%d:%d:%d\n",ecp[0],ecp[1],ecp[2],ecp[3],ecp[4]);
 
     GF gf;
     gf.len = GF_MAX;
@@ -184,8 +199,8 @@ void qr_error_correct_interleave(QR qr)
                 }
 
             }
-            poly_view("raw",qr->data+ec_index,data_per_block);
-            poly_view("ec",ec_codeword,ec_per_block);
+            //poly_view("raw",qr->data+ec_index,data_per_block);
+            //poly_view("ec",ec_codeword,ec_per_block);
 
 
             interleave_ndx = block_id + ecp[1]*ecp[2]+ecp[3]*ecp[4];
@@ -290,9 +305,66 @@ void qr_add_timing_pattern(QR qr)
 /*
  * 添加黑块跟信息区域 
  */
-void qr_add_dark_reverse(QR qr)
+void qr_add_dark_reserve(QR qr)
 {
     qr->matrix[qr_XY(qr,8,4*qr->ver+9)] = BLACK_MODULE;
+    /*
+     * 格式信息保留区
+     */
+    for (int i = 0; i < 8; i++) {
+        if (qr->matrix[qr_XY(qr,8,i)] == NONE_MODULE) {
+            qr->matrix[qr_XY(qr,8,i)] = RESERVE_MODULE;
+        }
+        if (qr->matrix[qr_XY(qr,i,8)] == NONE_MODULE) {
+            qr->matrix[qr_XY(qr,i,8)] = RESERVE_MODULE;
+        }
+        if (qr->matrix[qr_XY(qr,qr->size-1-i,8)] == NONE_MODULE) {
+            qr->matrix[qr_XY(qr,qr->size-1-i,8)] = RESERVE_MODULE;
+        }
+        if (qr->matrix[qr_XY(qr,8,qr->size-1-i)] == NONE_MODULE) {
+            qr->matrix[qr_XY(qr,8,qr->size-1-i)] = RESERVE_MODULE;
+        }
+    }
+     qr->matrix[qr_XY(qr,8,8)] = RESERVE_MODULE;
+
+     if (qr->ver >= 7) {
+         for (int i = 0; i < 6; i ++ ) {
+             for (int j = 0; j < 3; j++ ) {
+                 qr->matrix[qr_XY(qr,qr->size-9-j,i)] = RESERVE_MODULE;
+                 qr->matrix[qr_XY(qr,i,qr->size-9-j)] = RESERVE_MODULE;
+             }
+         }
+     }
+
+}
+
+/* 
+ * 使用掩模
+ */
+char mask(QR qr,int x,int y, char module)
+{
+    int i = y;
+    int j = x;
+    switch(qr->mask) {
+    case QR_MASK_000:
+        return ((i+j)%2 == 0)^module;
+    case QR_MASK_001:
+        return (i%2 == 0)^module;
+    case QR_MASK_010:
+        return (j%3 == 0)^module;
+    case QR_MASK_011:
+        return ((i+j)%3 == 0)^module;
+    case QR_MASK_100:
+        return ((i/2+j/3)%2 == 0)^module;
+    case QR_MASK_101:
+        return ((i*j)%2+(i*j)%3 == 0)^module;
+    case QR_MASK_110:
+        return (((i*j)%2+(i*j)%3)%2 == 0)^module;
+    case QR_MASK_111:
+        return (((i*j)%3+(i+j)%2)%2 == 0)^module;
+    default:
+        return module;
+    }
 }
 /*
  * 添加数据到二维码矩阵
@@ -301,29 +373,96 @@ void qr_add_data_bit(QR qr)
 {
     int x = qr->size - 1;
     int y = qr->size - 1;
-    poly_view("interleave",qr->codeword,codeword_count[QR_VERSION(qr->ver)]);
+    int left = -1;
+    int right = 1;
+    int up = -1;
+    int down = 1;
+    int state = right;
+    int side = up;
+    int bit_n = 8;
 
-    for (int i = 0; i < qr->codeword_max; i++ ) {
-        for (int j = 0; j < 4; j += 2) {
-            char b1 = bit(qr->codeword[i],j);
-            qr->matrix[qr_XY(qr,x-1,y)] = b1?BLACK_MODULE:WHITE_MODULE; 
-            char b2 = bit(qr->codeword[i],j+1);
-            qr->matrix[qr_XY(qr,x,y-1)] = b1?BLACK_MODULE:WHITE_MODULE; 
+    //bin("interleave",qr->codeword,codeword_count[QR_VERSION(qr->ver)]);
+
+    for (int i = 0; i <= qr->codeword_max; i++ ) {
+        if (i == qr->codeword_max) bit_n = remainder_bit_count[QR_VERSION(qr->ver)];
+        for (int j = 0; j < bit_n; j ++) {
+            /* 寻找下一个未使用的格子 */
+            while (qr->matrix[qr_XY(qr,x,y)] != NONE_MODULE) {
+                if (state == right) {
+                    state = left;
+                    x-=1;
+                }else {
+                    state = right;
+                    x+=1;
+                    y+=side;
+                }
+                //if (bit_ndx == qr->size*qr->size-1) return;
+                if ( (side == up && y == -1) || (side == down && y == qr->size) ) {
+                    /* !!!重要的事情  碰到垂直坐标线直接跳过这一列而不是寻找下一个可用的格子 */
+
+                    x -= 2;
+                    y-=side;
+                    if (x == 6) x--;
+                    side *= -1;
+                }
+            }
+            int b = bit(qr->codeword[i], j);
+            if (i == qr->codeword_max) b = 0;
+            qr->matrix[qr_XY(qr,x,y)] = mask(qr,x,y,b)==1?BLACK_MODULE:WHITE_MODULE;
+            //qr->matrix[qr_XY(qr,x,y)] |= MODULE_VALUE(y+1);
         }
-        y -= 4;
-        printf(" ");
     }
 }
 
+
+/* 
+ * 添加格式信息和版本信息
+ */
+
+void qr_add_format_version(QR qr)
+{
+    unsigned char * format = format_string[qr->ec][qr->mask];
+    turn_endian((char*)&format,4);
+    printf("format: %s\n",format);
+
+    int format_ndx = 14;
+    /* 添加格式信息 */
+    for (int i = 0; i < 9; i++) {
+        unsigned char module = qr->matrix[qr_XY(qr,8, i)];
+        if (MODULE_GET_TYPE(module) == RESERVE_MODULE) {
+            qr->matrix[qr_XY(qr,8,i)] = format[format_ndx--]=='1'?BLACK_MODULE:WHITE_MODULE;
+        }
+    }
+    for (int i = 7; i >= 0; i--) {
+        unsigned char module = qr->matrix[qr_XY(qr,i,8)];
+        if (MODULE_GET_TYPE(module) == RESERVE_MODULE) {
+            qr->matrix[qr_XY(qr,i,8)] = format[format_ndx--]=='1'?BLACK_MODULE:WHITE_MODULE;
+        }
+        
+    }
+
+    /* 
+     * 版本信息
+     */
+    if (qr->ver >= 7) {
+        unsigned char *version = QR_VERSION_STRING(qr->ver);
+        int version_ndx = 17;
+        for (int i = 0; i < 6; i ++) {
+            for (int j = 0; j < 3; j++) {
+                qr->matrix[qr_XY(qr,i,qr->size-11+j)] = version[version_ndx--]=='1'?BLACK_MODULE:WHITE_MODULE;
+            }
+        }
+    }
+}
 /*
  * 初始化qrcode 
  */
- QR qr_create( char * bytes,enum ec_level ec)
+ QR qr_create( char * bytes,enum QR_EC_LEVEL ec)
 {
     int msg_length = strlen(bytes);
     int ver = 0;
     for (int i = 1; i<= QR_VERSION_MAX; i ++) {
-        if(capacity[QR_VERSION(i)][BYTE][ec] >= msg_length) {
+        if(capacity[QR_VERSION(i)][QR_ENCODE_TYPE_BYTE][ec] >= msg_length) {
             ver = i;
             break;
         } 
@@ -336,12 +475,13 @@ void qr_add_data_bit(QR qr)
     QR qr = (QR)malloc(sizeof(struct _qr_));
     qr->ver = ver;
     qr->ec = ec;
-    qr->mode = BYTE;
+    qr->mode = QR_ENCODE_TYPE_BYTE;
     qr->size = QR_SIZE(ver);
     int * ecp=ec_parameter[QR_VERSION(ver)][ec];
-
     qr->data_max = ecp[1]*ecp[2]+ecp[3]*ecp[4];
     qr->codeword_max = codeword_count[QR_VERSION(ver)];
+    qr->mask = QR_MASK_001;
+
     qr->data = (unsigned char *)malloc(qr->data_max);
     qr->matrix = (unsigned char *)malloc(qr->size*qr->size);
     qr->codeword = (unsigned char *)malloc(qr->codeword_max);
@@ -358,8 +498,9 @@ void qr_add_data_bit(QR qr)
     qr_add_separator(qr);
     qr_add_align_pattern(qr);
     qr_add_timing_pattern(qr);
-    qr_add_dark_reverse(qr);
+    qr_add_dark_reserve(qr);
     qr_add_data_bit(qr);
+    qr_add_format_version(qr);
     return qr;
 }
 

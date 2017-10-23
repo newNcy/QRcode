@@ -4,28 +4,46 @@
 #include <malloc.h>
 #include <string.h>
 #include "reed-solomon.h"
-enum ec_level {
-    L,
-    M,
-    Q,
-    H,
-    EC_LEVEL_MAX
+enum QR_EC_LEVEL {
+    QR_EC_LEVEL_L,
+    QR_EC_LEVEL_M,
+    QR_EC_LEVEL_Q,
+    QR_EC_LEVEL_H,
+    QR_EC_LEVEL_MAX
 };
-enum qr_mode {
-    NUM,
-    ALPHA_NUM,
-    BYTE,
-    KANJI,
-    QR_MODE_MAX
+enum QR_ENCODE_TYPE {
+    QR_ENCODE_TYPE_NUM,
+    QR_ENCODE_TYPE_ALPHA_NUM,
+    QR_ENCODE_TYPE_BYTE,
+    QR_ENCODE_TYPE_KANJI,
+    QR_ENCODE_TYPE_MAX
+};
+enum QR_MASK_TYPE {
+    QR_MASK_000,
+    QR_MASK_001,
+    QR_MASK_010,
+    QR_MASK_011,
+    QR_MASK_100,
+    QR_MASK_101,
+    QR_MASK_110,
+    QR_MASK_111,
+    QR_MASK_MAX
 };
 
-#define QR_VERSION(X)  (X-1)
-#define QR_VERSION_MAX (40)
-#define QR_SIZE(X)     (21+4*(QR_VERSION(X)))
+#define QR_VERSION(X)        ((X)-1)
+#define QR_VERSION_STRING(X) (version_string[(X)-7])
+#define QR_VERSION_MAX       (40)
+#define QR_SIZE(X)           (21+4*(QR_VERSION(X)))
 
-#define BLACK_MODULE 1
-#define WHITE_MODULE 0
-#define NONE_MODULE 2
+#define WHITE_MODULE 0x00
+#define BLACK_MODULE 0x01
+#define RESERVE_MODULE 0x02
+#define NONE_MODULE 0x03
+
+#define MODULE_GET_VALUE(X) ((X)>>2)
+#define MODULE_VALUE(X) ((X)<<2)
+#define MODULE_GET_TYPE(X) ((X)&0x03)
+#define MODULE_TYPE(X) MODULE_GET_TYPE(X)
 
 
 
@@ -35,9 +53,10 @@ enum qr_mode {
 struct _qr_
 {
     int ver;
-    int ec;
     int size;
-    enum qr_mode mode;
+    enum QR_EC_LEVEL  ec;
+    enum QR_ENCODE_TYPE mode;
+    enum QR_MASK_TYPE mask;
 
     int data_max;
     int codeword_max;
@@ -58,8 +77,8 @@ typedef struct _pos pos;
  */
 static  int capacity
 [QR_VERSION_MAX] //40 40个版本
-[QR_MODE_MAX]    //4  4种编码模式
-[EC_LEVEL_MAX]   //4  4种纠错等级
+[QR_ENCODE_TYPE_MAX]    //4  4种编码模式
+[QR_EC_LEVEL_MAX]   //4  4种纠错等级
 = {
     {{},{},{  17,  14,  11,   7},{} },//v1
     {{},{},{  32,  26,  20,  14},{} },//v2
@@ -115,10 +134,108 @@ static  int capacity
     1156, 1258, 1364, 1474, 1588, 1706, 1825, 1921, 2051, 2185,
     2323, 2465, 2611, 2761, 2876, 3034, 3196, 3362, 3532, 3706
 };
+
+/* 
+ * 填充的格子数
+ */
+static int remainder_bit_count[]
+=
+{
+    0, 7, 7, 7, 7, 7, 0, 0, 0, 0, 
+    0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 
+    4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 
+    3, 3, 3, 3, 0, 0, 0, 0, 0, 0
+};
+
+static unsigned char format_string[][QR_MASK_MAX][16]
+=
+{
+    {  //L 0-7
+        "111011111000100",
+        "111001011110011",
+        "111110110101010",
+        "111100010011101",
+        "110011000101111",
+        "110001100011000",
+        "110110001000001",
+        "110100101110110"
+    },
+    {
+        "101010000010010",
+        "101000100100101",
+        "101111001111100",
+        "101101101001011",
+        "100010111111001",
+        "100000011001110",
+        "100111110010111",
+        "100101010100000"
+    },
+    {
+        "011010101011111",
+        "011000001101000",
+        "011111100110001",
+        "011101000000110",
+        "010010010110100",
+        "010000110000011",
+        "010111011011010",
+        "010101111101101"
+    },
+    {
+        "001011010001001",
+        "001001110111110",
+        "001110011100111",
+        "001100111010000",
+        "000011101100010",
+        "000001001010101",
+        "000110100001100",
+        "000100000111011"
+    }
+};
+
+static unsigned char version_string[QR_VERSION_MAX][18]
+=
+{
+    "000111110010010100", // v7
+    "001000010110111100", // v8
+    "001001101010011001", // v9
+    "001010010011010011", // v10
+    "001011101111110110", // v11
+    "001100011101100010", // v12
+    "001101100001000111", // v13
+    "001110011000001101", // v14
+    "001111100100101000", // v15
+    "010000101101111000", // v16
+    "010001010001011101", // v17
+    "010010101000010111", // v18
+    "010011010100110010", // v19
+    "010100100110100110", // v20
+    "010101011010000011", // v21
+    "010110100011001001", // v22
+    "010111011111101100", // v23
+    "011000111011000100", // v24
+    "011001000111100001", // v25
+    "011010111110101011", // v26
+    "011011000010001110", // v27
+    "011100110000011010", // v28
+    "011101001100111111", // v29
+    "011110110101110101", // v30
+    "011111001001010000", // v31
+    "100000100111010101", // v32
+    "100001011011110000", // v33
+    "100010100010111010", // v34
+    "100011011110011111", // v35
+    "100100101100001011", // v36
+    "100101010000101110", // v37
+    "100110101001100100", // v38
+    "100111010101000001", // v39
+    "101000110001101001"  // v40
+};
 /* 
  * 小块回字的中心点坐标
  */
-static int align_location[QR_VERSION_MAX] [7] = {
+static int align_location[QR_VERSION_MAX] [7] 
+= 
+{
     {},
     {6,	18},
     {6,	22},
@@ -176,7 +293,7 @@ static int align_location[QR_VERSION_MAX] [7] = {
 static 
 int ec_parameter 
 [QR_VERSION_MAX]
-[EC_LEVEL_MAX]
+[QR_EC_LEVEL_MAX]
 [5]
 =
 {
@@ -425,7 +542,7 @@ int ec_parameter
 /*
  * 为字符串生成二维码
  */
-QR qr_create(char bytes[],enum ec_level);
+QR qr_create(char bytes[],enum QR_EC_LEVEL);
 
 /*
  * 显示二维码

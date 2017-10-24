@@ -14,6 +14,8 @@ int qr_XY(QR qr, int x, int y)
  */
 void qr_view(QR qr)
 {
+
+    int w = 1;
     printf("\n[ver-%03d]\n",qr->ver);
     printf("[ecl-'%c']\n","LMQH"[qr->ec]);
     printf("[%03dx%03d]\n",qr->size,qr->size);
@@ -27,13 +29,13 @@ void qr_view(QR qr)
             if (MODULE_GET_TYPE(module) == WHITE_MODULE) {
                 unsigned char v = MODULE_GET_VALUE(module);
                 if (v!=0)
-                    printf("\033[47;30m%2d\033[0m",v);
+                    printf("\033[47m  \033[0m");
                 else 
                     printf("\033[47m  \033[0m");
             }else if(MODULE_GET_TYPE(module) == BLACK_MODULE){
                 unsigned char v = MODULE_GET_VALUE(module);
                 if (v!=0)
-                    printf("\033[37m%2d\033[0m",v);
+                    printf("  ");
                 else 
                     printf("  ");
             }else if (MODULE_GET_TYPE(module) == RESERVE_MODULE) {
@@ -381,7 +383,7 @@ void qr_add_data_bit(QR qr)
     int side = up;
     int bit_n = 8;
 
-    //bin("interleave",qr->codeword,codeword_count[QR_VERSION(qr->ver)]);
+    bin("interleave",qr->codeword,codeword_count[QR_VERSION(qr->ver)]);
 
     for (int i = 0; i <= qr->codeword_max; i++ ) {
         if (i == qr->codeword_max) bit_n = remainder_bit_count[QR_VERSION(qr->ver)];
@@ -409,7 +411,7 @@ void qr_add_data_bit(QR qr)
             int b = bit(qr->codeword[i], j);
             if (i == qr->codeword_max) b = 0;
             qr->matrix[qr_XY(qr,x,y)] = mask(qr,x,y,b)==1?BLACK_MODULE:WHITE_MODULE;
-            //qr->matrix[qr_XY(qr,x,y)] |= MODULE_VALUE(y+1);
+            qr->matrix[qr_XY(qr,x,y)] |= MODULE_VALUE(3);
         }
     }
 }
@@ -427,6 +429,7 @@ void qr_add_format_version(QR qr)
 
     int format_ndx = 14;
     /* 添加格式信息 */
+    
     for (int i = 0; i < 9; i++) {
         unsigned char module = qr->matrix[qr_XY(qr,8, i)];
         if (MODULE_GET_TYPE(module) == RESERVE_MODULE) {
@@ -440,6 +443,16 @@ void qr_add_format_version(QR qr)
         }
         
     }
+    
+
+    format_ndx=14;
+    for (int i = 0; i < 8; i++ ) {
+        qr->matrix[qr_XY(qr,qr->size-1-i,8)] = format[format_ndx--]=='1'?BLACK_MODULE:WHITE_MODULE;
+    }
+
+    for (int i = 6; i >= 0; i--) {
+        qr->matrix[qr_XY(qr,8,qr->size-1-i)] = format[format_ndx--]=='1'?BLACK_MODULE:WHITE_MODULE;
+    }
 
     /* 
      * 版本信息
@@ -450,6 +463,8 @@ void qr_add_format_version(QR qr)
         for (int i = 0; i < 6; i ++) {
             for (int j = 0; j < 3; j++) {
                 qr->matrix[qr_XY(qr,i,qr->size-11+j)] = version[version_ndx--]=='1'?BLACK_MODULE:WHITE_MODULE;
+                version_ndx++;
+                qr->matrix[qr_XY(qr,qr->size-11+j,i)] = version[version_ndx--]=='1'?BLACK_MODULE:WHITE_MODULE;
             }
         }
     }

@@ -21,7 +21,7 @@ void gf_make(GF *  gf)
 }
 
 /* 
- * 域上乘运算 
+ * 域上乘运算 (仅在计算生成多项式使用，计算纠错码直接队255求余)
  */
 unsigned char gf_mul(GF *gf,unsigned char e1, unsigned char e2)
 {
@@ -76,15 +76,16 @@ void gf_make_generator_poly(GF * gf, unsigned char gen[],unsigned int len)
     /* a^0*x^1 + a^0*x^0   此时x^1  x^0的alpha的指数都为0*/
     //gen[0] = 0;  
 
-    int plen = 1; // now is len of gen poly
+    int plen = 1; // 多项式长度
     for (int i = 1; i< len;i++) {
         plen++;
         gen[plen-1] = gf_add(gf,gen[plen-2],i);
         for (int j = plen-2; j > 0; j--) {
-            gen[j] = gf_add(gf,gen[j-1],gf_mul(gf,gen[j],i));  
+            gen[j] = gf_add(gf,gen[j-1],gf_mul(gf,gen[j],i)); //本身系数加上指数减一的系数(因为乘(a^0x^1+a^ix^0)) 
         }
         gen[0] = gf_mul(gf,gen[0],i);
     }
+    /* 倒换顺序  最高次幂系数在最前面 */
     for (int i= 0; i< len/2; i++) {
         char t = gen[i];
         gen[i] = gen[len-i-1];

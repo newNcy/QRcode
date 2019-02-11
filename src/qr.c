@@ -27,16 +27,8 @@ void qr_view(QR qr)
         for (int j = 0; j< qr->size; j++) {
             unsigned module = qr->matrix[qr_XY(qr,j,i)];
             if (MODULE_GET_TYPE(module) == WHITE_MODULE) {
-                unsigned char v = MODULE_GET_VALUE(module);
-                if (v!=0)
-                    printf("\033[47m  \033[0m");
-                else 
                     printf("\033[47m  \033[0m");
             }else if(MODULE_GET_TYPE(module) == BLACK_MODULE){
-                unsigned char v = MODULE_GET_VALUE(module);
-                if (v!=0)
-                    printf("  ");
-                else 
                     printf("  ");
             }else if (MODULE_GET_TYPE(module) == RESERVE_MODULE) {
                 printf("\033[43m  \033[0m");
@@ -49,6 +41,7 @@ void qr_view(QR qr)
     }
     for (int i = 0;i<qr->size+2; i++)
         printf("\033[47m  \033[0m");
+    printf("\n");
 }
 
 
@@ -84,6 +77,8 @@ char bit(unsigned char word, int ndx)
  */
 void turn_endian(char b[],int l)
 {
+    //
+    //return;
     for (int i=0; i<l; i++) {
         char t = b[i];
         b[i] = b[l-i-1];
@@ -191,8 +186,11 @@ void qr_error_correct_interleave(QR qr)
 
             /* 数据交错 */
             interleave_ndx = block_id;
+            //block 的每一个数
             for (int i = 0; i < data_per_block; i++) {
                 qr->codeword[interleave_ndx] = qr->data[ec_index + i];
+
+                //跳到下一个block的待取位置
                 if (i+1 < ecp[2]) {
                     interleave_ndx += ecp[1]; //第一组block数
                 }
@@ -379,11 +377,11 @@ void qr_add_data_bit(QR qr)
     int right = 1;
     int up = -1;
     int down = 1;
+    int bit_n = 8;
     int state = right;
     int side = up;
-    int bit_n = 8;
 
-    bin("interleave",qr->codeword,codeword_count[QR_VERSION(qr->ver)]);
+    //bin("interleave",qr->codeword,codeword_count[QR_VERSION(qr->ver)]);
 
     for (int i = 0; i <= qr->codeword_max; i++ ) {
         if (i == qr->codeword_max) bit_n = remainder_bit_count[QR_VERSION(qr->ver)];
@@ -400,10 +398,11 @@ void qr_add_data_bit(QR qr)
                 }
                 //if (bit_ndx == qr->size*qr->size-1) return;
                 if ( (side == up && y == -1) || (side == down && y == qr->size) ) {
-                    /* !!!重要的事情  碰到垂直坐标线直接跳过这一列而不是寻找下一个可用的格子 */
 
                     x -= 2;
                     y-=side;
+                    
+                    /* !!!重要的事情  碰到垂直坐标线直接跳过这一列而不是寻找下一个可用的格子 */
                     if (x == 6) x--;
                     side *= -1;
                 }
@@ -411,7 +410,6 @@ void qr_add_data_bit(QR qr)
             int b = bit(qr->codeword[i], j);
             if (i == qr->codeword_max) b = 0;
             qr->matrix[qr_XY(qr,x,y)] = mask(qr,x,y,b)==1?BLACK_MODULE:WHITE_MODULE;
-            qr->matrix[qr_XY(qr,x,y)] |= MODULE_VALUE(3);
         }
     }
 }
@@ -519,6 +517,52 @@ void qr_add_format_version(QR qr)
     return qr;
 }
 
+//输出为json（方便）
+int qr_json_len(QR qr,const char *name)
+{
+    int width = qr->size;
+    /**
+     * {[  [0,1,0,...1(size个)],         [],[],...[](size个)  ]}
+     */
+    int len = 4 +2*(width+1)*width;
+    len+= strlen(name)+3;//"":
+    return  len;
+}
+
+void qr_to_json(QR qr,const char * name)
+{
+    int len = qr_json_len(qr,name);
+    char * json = malloc(len);
+    int idx = 0;
+    
+
+    json[idx++] = '{';
+    json[idx++] = '\"';
+    strcpy(json+idx,name);
+    idx += strlen(name);
+    json[idx++] = '\"';
+    json[idx++] = ':';
+    json[idx++] = '[';
+
+
+    for (int i = 0; i <  qr->size; i++) {
+        json[idx++] = '[';
+        for (int j = 0; j < qr->size; j++) {
+            json[idx++] = qr->matrix[qr_XY(qr,j,i)]==BLACK_MODULE?'1':'0';
+            if (j!=qr->size-1) {
+                json[idx++] = ',';
+            }
+        }
+        json[idx++] = ']';
+        if (i != qr->size-1) {
+            json[idx++] = ',';
+        }
+    }
+    json[idx++] = ']';
+    json[idx++] = '}';
+    json[idx++] = 0;
+    printf("%s\n",json);
+}
 /*
  * 销毁一个qr 结构体
  */

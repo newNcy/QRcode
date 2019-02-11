@@ -35,10 +35,10 @@ enum QR_MASK_TYPE {
 #define QR_VERSION_MAX       (40)
 #define QR_SIZE(X)           (21+4*(QR_VERSION(X)))
 
-#define WHITE_MODULE 0x00
-#define BLACK_MODULE 0x01
-#define RESERVE_MODULE 0x02
-#define NONE_MODULE 0x03
+#define NONE_MODULE 0x00
+#define WHITE_MODULE 0x01
+#define BLACK_MODULE 0x02
+#define RESERVE_MODULE 0x03
 
 #define MODULE_GET_VALUE(X) ((X)>>2)
 #define MODULE_VALUE(X) ((X)<<2)
@@ -549,6 +549,7 @@ QR qr_create(char bytes[],enum QR_EC_LEVEL);
  */
 void qr_view(QR qr);
 
+void qr_to_json(QR qr,const char * name);
 /*
  * 释放二维码
  */

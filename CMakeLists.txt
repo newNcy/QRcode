@@ -17,8 +17,8 @@ set(LIBRARY_OUTPUT_PATH lib)
 
 
 set (QR_SOURCE src)
-add_library(qr-shared SHARED src/qr.c src/reed-solomon.c)
-add_library(qr-static STATIC src/qr.c src/reed-solomon.c)
+add_library(qr-shared SHARED src/qr.cpp src/reed-solomon.cpp)
+add_library(qr-static STATIC src/qr.cpp src/reed-solomon.cpp)
 
 #添加可执行程序
 add_executable(qr  main.c)

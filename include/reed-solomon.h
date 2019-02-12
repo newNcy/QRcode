@@ -1,6 +1,7 @@
 #ifndef _REED_SOLOMON_H
 #define _REED_SOLOMON_H
 #include <stdio.h>
+#include <string.h>
 #include <malloc.h>
 /* 
  * 伽罗华域 

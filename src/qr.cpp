@@ -26,13 +26,13 @@ void qr_view(QR qr)
         printf("\033[47m  \033[0m");
         for (int j = 0; j< qr->size; j++) {
             unsigned module = qr->matrix[qr_XY(qr,j,i)];
-            if (MODULE_GET_TYPE(module) == WHITE_MODULE) {
+            if (module == WHITE_MODULE) {
                     printf("\033[47m  \033[0m");
-            }else if(MODULE_GET_TYPE(module) == BLACK_MODULE){
+            }else if(module == BLACK_MODULE){
                     printf("  ");
-            }else if (MODULE_GET_TYPE(module) == RESERVE_MODULE) {
+            }else if (module == RESERVE_MODULE) {
                 printf("\033[43m  \033[0m");
-            }else if (MODULE_GET_TYPE(module) == NONE_MODULE) {
+            }else if (module == NONE_MODULE) {
                 printf("\033[40m  \033[0m");
             }
         }
@@ -88,7 +88,7 @@ void turn_endian(char b[],int l)
 /*
  * 编码数据
  */
-void qr_encode_bytes(QR qr, char bytes[])
+void qr_encode_bytes(QR qr, const char bytes[])
 {
     short len = strlen(bytes);
     //bin("bytes",(unsigned char *)bytes,len);
@@ -130,7 +130,7 @@ void qr_encode_bytes(QR qr, char bytes[])
     /*
      * 填充pad byte 直到长度为数据码字总数
      */
-    char pad[] = {0xec, 0x11}; // 1110 1100,0001 0001
+    unsigned char pad[] = {0xec, 0x11}; // 1110 1100,0001 0001
     int pad_count = qr->data_max - index;
     for (int i = 0; i < pad_count; i ++) {
         qr->data[index++] = pad[i%2];
@@ -229,7 +229,7 @@ void qr_add_finder_pattern(QR qr)
     for (int i = 0; i < 3; i ++) {
         int cx = ps[i].x + 3;
         int cy = ps[i].y + 3;
-        qr->matrix[qr_XY(qr,cx,cy)] = 1;
+        qr->matrix[qr_XY(qr,cx,cy)] = BLACK_MODULE;
         for(int j = 1; j<=3 ;j++) {
             int sx,sy;
             for ( sx = cx-j,sy=cy-j; sx<=cx+j; sx++,sy++) {
@@ -274,7 +274,7 @@ void qr_add_align_pattern(QR qr)
                 int cy = aligns[i];
                 int c = qr->matrix[qr_XY(qr,cx,cy)];
                 if ( c == NONE_MODULE ) {
-                    qr->matrix[qr_XY(qr,cx,cy)] = 1;
+                    qr->matrix[qr_XY(qr,cx,cy)] = BLACK_MODULE;
                     for(int k = 1; k <= 2; k ++) {
                         int sx,sy;
                         for ( sx = cx-k,sy=cy-k; sx<=cx+k; sx++,sy++) {
@@ -341,7 +341,7 @@ void qr_add_dark_reserve(QR qr)
 /* 
  * 使用掩模
  */
-char mask(QR qr,int x,int y, char module)
+char mask(QR qr,int x,int y,unsigned char module)
 {
     int i = y;
     int j = x;
@@ -430,13 +430,13 @@ void qr_add_format_version(QR qr)
     
     for (int i = 0; i < 9; i++) {
         unsigned char module = qr->matrix[qr_XY(qr,8, i)];
-        if (MODULE_GET_TYPE(module) == RESERVE_MODULE) {
+        if (module == RESERVE_MODULE) {
             qr->matrix[qr_XY(qr,8,i)] = format[format_ndx--]=='1'?BLACK_MODULE:WHITE_MODULE;
         }
     }
     for (int i = 7; i >= 0; i--) {
         unsigned char module = qr->matrix[qr_XY(qr,i,8)];
-        if (MODULE_GET_TYPE(module) == RESERVE_MODULE) {
+        if (module == RESERVE_MODULE) {
             qr->matrix[qr_XY(qr,i,8)] = format[format_ndx--]=='1'?BLACK_MODULE:WHITE_MODULE;
         }
         
@@ -470,7 +470,7 @@ void qr_add_format_version(QR qr)
 /*
  * 初始化qrcode 
  */
- QR qr_create( char * bytes,enum QR_EC_LEVEL ec)
+ QR qr_create( const char * bytes,enum QR_EC_LEVEL ec)
 {
     int msg_length = strlen(bytes);
     int ver = 0;
@@ -529,10 +529,9 @@ int qr_json_len(QR qr,const char *name)
     return  len;
 }
 
-void qr_to_json(QR qr,const char * name)
+void qr_to_json(QR qr,const char * name,char * json)
 {
-    int len = qr_json_len(qr,name);
-    char * json = malloc(len);
+
     int idx = 0;
     
 
@@ -573,5 +572,3 @@ void qr_destroy(QR qr)
     free(qr->matrix);
     free(qr);
 }
-
-

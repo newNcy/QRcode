@@ -4,6 +4,12 @@
 #include <malloc.h>
 #include <string.h>
 #include "reed-solomon.h"
+
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 enum QR_EC_LEVEL {
     QR_EC_LEVEL_L,
     QR_EC_LEVEL_M,
@@ -39,12 +45,6 @@ enum QR_MASK_TYPE {
 #define WHITE_MODULE 0x01
 #define BLACK_MODULE 0x02
 #define RESERVE_MODULE 0x03
-
-#define MODULE_GET_VALUE(X) ((X)>>2)
-#define MODULE_VALUE(X) ((X)<<2)
-#define MODULE_GET_TYPE(X) ((X)&0x03)
-#define MODULE_TYPE(X) MODULE_GET_TYPE(X)
-
 
 
 /*
@@ -192,7 +192,7 @@ static unsigned char format_string[][QR_MASK_MAX][16]
     }
 };
 
-static unsigned char version_string[QR_VERSION_MAX][18]
+static unsigned char version_string[QR_VERSION_MAX][19]
 =
 {
     "000111110010010100", // v7
@@ -542,16 +542,21 @@ int ec_parameter
 /*
  * 为字符串生成二维码
  */
-QR qr_create(char bytes[],enum QR_EC_LEVEL);
+QR qr_create(const char bytes[],enum QR_EC_LEVEL);
 
 /*
  * 显示二维码
  */
 void qr_view(QR qr);
-
-void qr_to_json(QR qr,const char * name);
+int qr_json_len(QR qr,const char *name);
+void qr_to_json(QR qr,const char * name,char *json);
 /*
  * 释放二维码
  */
+
 void qr_destroy(QR qr);
+
+#ifdef __cplusplus
+}
+#endif
 #endif

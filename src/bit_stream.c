@@ -1,7 +1,6 @@
 #include "bit_stream.h"
 #include <stdio.h>
 
-#define min(a, b) (a > b? b:a)
 
 void bit_stream_resize(bit_stream_t * stream, uint32_t new_size)
 {

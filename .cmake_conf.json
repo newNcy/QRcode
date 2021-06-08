@@ -1,1 +1,1 @@
-{"target_dirs":{"qr-shared":".","qr-static":".","qr":"."},"targets":["qr","all","qr-shared","qr-static"]}
+{"target_dirs":{"qr":".","main":"."},"targets":["main","all","qr"]}

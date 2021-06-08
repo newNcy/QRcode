@@ -13,8 +13,8 @@ set(LIBRARY_OUTPUT_PATH lib)
 
 include_directories(src)
 set (QR_SOURCE src)
-add_library(qr-shared SHARED src/qr.c)
-add_library(qr-static STATIC src/qr.c)
+add_library(qr-shared SHARED src/qr.c src/bit_stream.c)
+add_library(qr-static STATIC src/qr.c src/bit_stream.c)
 
 #添加可执行程序
 add_executable(qr main.c)

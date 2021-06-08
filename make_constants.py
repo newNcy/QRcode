@@ -1,28 +1,37 @@
-#!/usr/bin/env python
 # coding=utf-8
 import requests
 from bs4 import BeautifulSoup
 
 
 print('#pragma once\n\n')
-print('/* 脚本自动生成的表格 */\n\n')
+print('/* gen by make_constants.py */\n\n')
 
 
 def gen_capacities():
-    
-    print('/* 每个版本四个纠错等级四个模式的容量 */')
-    print('static int qr_capacities[][][][4] = \n{\n')
+    print('/* version < EC_level < Mode */')
+    print('/* Mode : Num AlphaNum Byte Kanji */')
+    print('static int qr_capacities[40][4][4] = \n{')
     table =  BeautifulSoup(requests.get('https://www.thonky.com/qr-code-tutorial/character-capacities').text,'html.parser').find_all('table')[1]
-    print(table)
-    rows = table.find_all('tr') 
-    for r in range(1, len(rows)):
-        print('{')
-        row = rows[r]
-        cols = row.find_all('td')
-        for c in range(1, len(cols)):
-            col = cols[c]
-            print(col, end = ' ')
-        print('},')
+    versions = table.find_all('tr') 
+    span = 0
+    level = "LMQH"
+    for idx in range(1, len(versions)):
+        version = versions[idx].find_all('td')
+        if len(version) < 5:
+            continue
+        if span == 0:
+            print('    { //v'+str(idx) + ' Num AlphaNum Byte Kanji')
+        print('        {', end = ' ')
+        start = 1
+        if len(version) > 5:
+            start = 2
+        for j in range(start, len(version)):
+            print(version[j].string, end = ',')
+        print('}, // '+level[span])
+        span = span + 1
+        if span == 4: 
+            print('    },')
+            span = 0 
     print('};\n')
 
 gen_capacities()
@@ -30,7 +39,7 @@ gen_capacities()
 tb = BeautifulSoup(requests.get('http://www.thonky.com/qr-code-tutorial/error-correction-table').text,'html.parser').find_all('table')[1]
 level = "LMQH"
 p = 0;
-print('static int qr_error_correction_parameter [][][5] =')
+print('static int qr_error_correction_parameter [40][4][5] =')
 print('{')
 trs = tb.find_all('tr')
 for j in range(1,len(trs)):
@@ -65,7 +74,7 @@ print('};')
 
 
 tb = BeautifulSoup(requests.get('http://www.thonky.com/qr-code-tutorial/structure-final-message').text,'html.parser').find_all('table')[5];
-print('int a = {')
+print('static int a[] = {', end = '')
 for tr in tb.find_all('tr'):
     tds =  tr.find_all('td')
     if len(tds) > 1:
@@ -82,6 +91,8 @@ print("")
 
 mn = 0;
 ec = 1;
+
+print('static const char * format [] = {')
 for i in range(2,(32)*3+2):
     if ((i-1)%3==0):
         print("        \"%s\","%(td[i].string))
@@ -96,3 +107,4 @@ for td in tb:
         #print(tr[0].string, end = ', ')
         print("    \"%s\", // v%d"%(tr[1].string,v))
         v = v+1
+print('};')

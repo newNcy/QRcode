@@ -1,4 +1,6 @@
 #pragma once
+#include "standard_table.h"
+#include "bit_stream.h"
 
 enum qr_code_mode_enum
 {
@@ -19,6 +21,7 @@ enum qr_error_correction_level_enum
     ERROR_CORRECTION_Q,
     ERROR_CORRECTION_H,
 };
+
 typedef enum qr_error_correction_level_enum qr_error_correction_level_enum;
 
 /*
@@ -28,35 +31,13 @@ typedef enum qr_error_correction_level_enum qr_error_correction_level_enum;
 struct qr_t
 {
     int version;
-    unsigned char * mudules;
+    byte_t * mudules;
 };
 typedef struct qr_t qr_t;
 
-/*
- * 编码器
- * 因为需要存一些中间数据
- */
-struct qr_encoder_t
-{
-    qr_code_mode_enum mode;
-    qr_error_correction_level_enum  ec_level;
-    int version;
-};
-typedef struct qr_encoder_t qr_encoder_t;
+qr_t qr_create(byte_t * bytes, qr_code_mode_enum mode, qr_error_correction_level_enum ec_level);
 
-
-/*
- * 解码器
- */
-struct qr_decoder_t
-{
-};
-typedef struct qr_decoder_t qr_decoder_t;
-
-
-qr_t * qr_create(qr_encoder_t * encoder, unsigned char * bytes, qr_code_mode_enum mode, qr_error_correction_level_enum ec_level);
-
-void qr_destroy(qr_t * qr);
+void qr_destroy(qr_t qr);
 
 
 

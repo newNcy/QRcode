@@ -20,6 +20,7 @@ polynomial_t polynomial_make(uint32_t len);
 polynomial_t polynomial_from_bytes(unsigned char * bytes, uint32_t data_len, uint32_t poly_len);
 void polynomial_print(polynomial_t poly);
 void polynomial_release(polynomial_t poly);
+polynomial_t polynomial_extend(polynomial_t a, uint32_t n);
 
 
 #define GF_PRIM 285

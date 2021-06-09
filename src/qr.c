@@ -43,19 +43,31 @@ void qr_encoder_generate_error_correction_codeword(qr_encoder_t * encoder)
 	bit_stream_dump(&encoder->data_codewords);
 	bit_stream_dump(&encoder->ec_codewords);
 
-    gf256_t * gf256 = get_gf256();
+    gf256_t * gf = get_gf256();
 	for (int i = 0; i < 256; ++i) {
 		//printf("%d %d\n", gf256->exp[i], gf256->log[i]);
 	}
-	polynomial_t generator = make_generator_polynomial(10);
-
 	//group1
 	for (int block = 0; block < encoder->ec_param.group1_blocks; ++ block) {
 		int data_codeword_count = encoder->ec_param.data_codeword_per_block1;
 		polynomial_t msg_poly = polynomial_from_bytes(encoder->data_codewords.data + block * data_codeword_count , data_codeword_count, data_codeword_count + ec_per_block);
-		polynomial_print(msg_poly);
 	}
 
+	polynomial_t generator = make_generator_polynomial(10);
+    byte_t test_data [] = {32, 91, 11, 120, 209, 114, 220, 77, 67, 64, 236, 17, 236, 17, 236, 17};
+    polynomial_t msg = polynomial_from_bytes(test_data, 16, 16);
+
+    //长除法 
+    //每一项用msg多项式的首项乘以gen多项式的对应项再跟msg异或
+    //因为gen首项是1,所以每次都会把首项消掉
+    //重复n轮得到纠错码，n是数据多项式长度
+    int len = max(generator.len, msg.len);
+    for (int i = 0; i < 10; ++ i) {
+        int lead_term = msg.coeffs[msg.len-1];
+        for (int j = 0; j < len; ++ j) {
+            msg.coeffs[j] = msg.coeffs[j] ^ ;
+        }
+    }
 }
 
 /*

@@ -49,10 +49,17 @@ polynomial_t polynomial_from_bytes(unsigned char * bytes, uint32_t data_len, uin
 	return ret;
 }
 
-polynomial_t polynomial_mul(polynomial_t a, polynomial_t b)
+/*
+ * 把所有项的指数增加n,等于乘以X^n
+ */
+polynomial_t polynomial_extend(polynomial_t a, uint32_t n)
 {
-	uint32_t res_len = a.len + b.len - 1;
-	polynomial_t c = polynomial_make(res_len);
+    polynomial_t b = polynomial_make(a.len + n);
+    for (int i = a.len-1; i >= 0; -- i) {
+        b.coeffs[i+n] = a.coeffs[i];
+    }
+
+    return b;
 }
 
 void polynomial_release(polynomial_t poly)

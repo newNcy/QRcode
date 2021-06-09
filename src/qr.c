@@ -16,6 +16,7 @@ struct qr_encoder_t
 
 	bit_stream_t data_codewords;
 	bit_stream_t ec_codewords;
+	qr_error_correction_parameter_t ec_param;
 };
 typedef struct qr_encoder_t qr_encoder_t;
 
@@ -30,18 +31,30 @@ typedef struct qr_decoder_t qr_decoder_t;
 
 
 
+/*
+ * 生成纠错码
+ * 使用长除法 过程需要两个多项式，一个是需要编码的数据，一个是生成多项式
+ */
 void qr_encoder_generate_error_correction_codeword(qr_encoder_t * encoder)
 {
-	int * ec_params = qr_error_correction_parameter[encoder->version][encoder->ec_level];
-	uint32_t ec_codeword_count = ec_params[0] * (ec_params[1] + ec_params[3]);
+	uint32_t ec_per_block = encoder->ec_param.ec_codeword_per_block;
+	uint32_t ec_codeword_count =  ec_per_block * (encoder->ec_param.group1_blocks + encoder->ec_param.group2_blocks);
 	bit_stream_resize(&encoder->ec_codewords, ec_codeword_count * 8);
 	bit_stream_dump(&encoder->data_codewords);
 	bit_stream_dump(&encoder->ec_codewords);
 
     gf256_t * gf256 = get_gf256();
-    for (int i = 0 ; i < 256; ++i) {
-        printf("%d %d\n", gf256->exp[i], gf256->log[i]);
-    }
+	for (int i = 0; i < 256; ++i) {
+		//printf("%d %d\n", gf256->exp[i], gf256->log[i]);
+	}
+	polynomial_t generator = make_generator_polynomial(10);
+
+	//group1
+	for (int block = 0; block < encoder->ec_param.group1_blocks; ++ block) {
+		int data_codeword_count = encoder->ec_param.data_codeword_per_block1;
+		polynomial_t msg_poly = polynomial_from_bytes(encoder->data_codewords.data + block * data_codeword_count , data_codeword_count, data_codeword_count + ec_per_block);
+		polynomial_print(msg_poly);
+	}
 
 }
 
@@ -71,9 +84,10 @@ qr_t qr_create(byte_t* bytes, qr_code_mode_enum mode, qr_error_correction_level_
 	encoder.version = qr.version;
     printf("version %d\n", encoder.version + 1);
 
-	int * ec_params = qr_error_correction_parameter[qr.version][ec_level];
+	qr_error_correction_parameter_t ec_param = qr_error_correction_parameter[qr.version][ec_level];
+	encoder.ec_param = ec_param;
 
-	uint32_t data_codeword_count = ec_params[1]*ec_params[2] + ec_params[3]*ec_params[4];
+	uint32_t data_codeword_count = ec_param.group1_blocks *ec_param.data_codeword_per_block2 + ec_param.group2_blocks * ec_param.data_codeword_per_block2;
 
 	bit_stream_resize(&encoder.data_codewords, data_codeword_count * 8);
 

@@ -39,7 +39,15 @@ gen_capacities()
 tb = BeautifulSoup(requests.get('http://www.thonky.com/qr-code-tutorial/error-correction-table').text,'html.parser').find_all('table')[1]
 level = "LMQH"
 p = 0;
-print('static int qr_error_correction_parameter [40][4][5] =')
+print('typedef struct')
+print('{')
+print('    int ec_codeword_per_block;')
+print('    int group1_blocks;')
+print('    int data_codeword_per_block1;')
+print('    int group2_blocks;')
+print('    int data_codeword_per_block2;')
+print('}qr_error_correction_parameter_t;')
+print('static qr_error_correction_parameter_t qr_error_correction_parameter [40][4] =')
 print('{')
 trs = tb.find_all('tr')
 for j in range(1,len(trs)):

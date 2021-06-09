@@ -250,7 +250,15 @@ static int qr_capacities[40][4][4] =
     },
 };
 
-static int qr_error_correction_parameter [40][4][5] =
+typedef struct
+{
+    int ec_codeword_per_block;
+    int group1_blocks;
+    int data_codeword_per_block1;
+    int group2_blocks;
+    int data_codeword_per_block2;
+}qr_error_correction_parameter_t;
+static qr_error_correction_parameter_t qr_error_correction_parameter [40][4] =
 {
     { //v1
         {  7,  1, 19,  0,  0},// level L

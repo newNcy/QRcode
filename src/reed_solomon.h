@@ -1,11 +1,12 @@
 #pragma once
 #include <stdint.h>
 
+#include "defs.h"
 /* 
  * 多项式
  * @len 项数
  * @coeffs 系数 
- * 举例 3x^2 - 5x^1 + 2 项数是3 系数是 [2, -5, 3], 反过来是因为这样元素下标就是它的幂
+ * 举例 3x^2 - 5x^1 + 2
  */
 struct polynomial_t 
 {
@@ -16,7 +17,9 @@ struct polynomial_t
 typedef struct polynomial_t polynomial_t;
 
 polynomial_t polynomial_make(uint32_t len);
-void polynomial_release(polynomial_t * poly);
+polynomial_t polynomial_from_bytes(unsigned char * bytes, uint32_t data_len, uint32_t poly_len);
+void polynomial_print(polynomial_t poly);
+void polynomial_release(polynomial_t poly);
 
 
 #define GF_PRIM 285

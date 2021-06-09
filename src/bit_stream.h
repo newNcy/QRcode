@@ -1,13 +1,9 @@
 #pragma once
 
+#include "defs.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-typedef unsigned char byte_t;
-
-#define min(a, b) (a > b? b:a)
-#define max(a, b) (a < b? b:a)
-
 struct bit_stream_t
 {
 	uint32_t capacity;

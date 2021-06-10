@@ -42,11 +42,23 @@ polynomial_t polynomial_from_bytes(unsigned char * bytes, uint32_t data_len, uin
 {
 	polynomial_t ret = polynomial_make(poly_len);
 	uint32_t copy_len = min(data_len, poly_len);
-	for (int i = 0; i < poly_len; ++i) {
+	for (int i = 0; i < data_len; ++i) {
 		ret.coeffs[poly_len-1-i] = bytes[i];
 	}
 
 	return ret;
+}
+
+/*
+ * 把多项式复制到字节数组
+ */
+
+void polynomial_copy_to_bytes(polynomial_t poly, byte_t * bytes, uint32_t buff_len)
+{
+	uint32_t copy_len = min(poly.len, buff_len);
+	for (int i = 0; i < copy_len; ++i) {
+		bytes[i] = poly.coeffs[poly.len-i-1];
+	}
 }
 
 /*
@@ -72,9 +84,9 @@ void polynomial_release(polynomial_t poly)
 void polynomial_print(polynomial_t poly)
 {
 	gf256_t * gf = get_gf256();
-	printf("[%d] %d(a^%d)", poly.len, poly.coeffs[poly.len-1], gf->log[poly.coeffs[poly.len-1]]);
+	printf("[%d] %3d", poly.len, poly.coeffs[poly.len-1], gf->log[poly.coeffs[poly.len-1]]);
 	for (int i = poly.len - 2; i >=0; --i) {
-		printf(" %d(a^%d)", poly.coeffs[i], gf->log[poly.coeffs[i]]);
+		printf(" ,%3d", poly.coeffs[i], gf->log[poly.coeffs[i]]);
 	}
 	printf("\n");
 }
@@ -105,5 +117,33 @@ polynomial_t make_generator_polynomial(uint32_t len)
 		generator.coeffs[0] = gf->exp[(gf->log[generator.coeffs[0]] + i)%255];
 	}
 	return generator;
+}
+
+
+/*
+ * 长除法求余
+ * 每一项用msg多项式的首项乘以gen多项式的对应项再跟msg异或
+ * 因为gen首项是1,所以每次都会把首项消掉
+ * 重复n轮得到纠错码，n是数据多项式长度
+ */
+polynomial_t reed_solomon(polynomial_t generator, byte_t * data, uint32_t data_len)
+{
+    
+	//中间变量使用int 而不是byte_t原因是会有溢出，需要处理完再变成byte_t
+    gf256_t * gf = get_gf256();
+    polynomial_t msg = polynomial_from_bytes(data, data_len, data_len + generator.len-1);
+	printf("%3d->",0);
+	polynomial_print(msg);
+	for (int i = 0; i < data_len; ++ i) {
+		printf("%3d->",i+1);
+        int lead_term = msg.coeffs[msg.len-1];
+        for (int j = 0; j < generator.len; ++ j) {
+			byte_t gen_term  = gf->exp[((int)(gf->log[generator.coeffs[generator.len-j-1]]) + gf->log[lead_term])%255];
+            msg.coeffs[msg.len-j-1] = msg.coeffs[msg.len-j-1] ^ gen_term;
+        }
+		msg.len --;
+		polynomial_print(msg);
+    }
+	return msg;
 }
 

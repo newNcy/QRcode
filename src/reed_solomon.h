@@ -18,6 +18,7 @@ typedef struct polynomial_t polynomial_t;
 
 polynomial_t polynomial_make(uint32_t len);
 polynomial_t polynomial_from_bytes(unsigned char * bytes, uint32_t data_len, uint32_t poly_len);
+void polynomial_copy_to_bytes(polynomial_t poly, byte_t * bytes, uint32_t buff_len);
 void polynomial_print(polynomial_t poly);
 void polynomial_release(polynomial_t poly);
 polynomial_t polynomial_extend(polynomial_t a, uint32_t n);
@@ -37,3 +38,4 @@ typedef struct gf256_t gf256_t;
 gf256_t * get_gf256();
 
 polynomial_t make_generator_polynomial(uint32_t len);
+polynomial_t reed_solomon(polynomial_t generator, byte_t * data, uint32_t data_len);

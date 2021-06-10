@@ -40,8 +40,6 @@ void qr_encoder_generate_error_correction_codeword(qr_encoder_t * encoder)
 	uint32_t ec_per_block = encoder->ec_param.ec_codeword_per_block;
 	uint32_t ec_codeword_count =  ec_per_block * (encoder->ec_param.group1_blocks + encoder->ec_param.group2_blocks);
 	bit_stream_resize(&encoder->ec_codewords, ec_codeword_count * 8);
-	bit_stream_dump(&encoder->data_codewords);
-	bit_stream_dump(&encoder->ec_codewords);
 
 	polynomial_t generator = make_generator_polynomial(ec_per_block);
 	polynomial_print(generator);
@@ -52,6 +50,8 @@ void qr_encoder_generate_error_correction_codeword(qr_encoder_t * encoder)
 		byte_t * data_start = encoder->data_codewords.data + data_codeword_count*block;
 		polynomial_t error_code = reed_solomon(generator, data_start, data_codeword_count);
 		polynomial_copy_to_bytes(error_code, encoder->ec_codewords.data + ec_block_idx*ec_per_block, ec_per_block);
+		encoder->ec_codewords.pos += ec_per_block*8;
+		ec_block_idx ++;
 	}
 }
 
@@ -124,5 +124,7 @@ qr_t qr_create(byte_t* bytes, qr_code_mode_enum mode, qr_error_correction_level_
     //生成纠错码
     qr_encoder_generate_error_correction_codeword(&encoder);
 
+	bit_stream_dump(&encoder.data_codewords);
+	bit_stream_dump(&encoder.ec_codewords);
     return qr;
 }

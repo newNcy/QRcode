@@ -82,7 +82,7 @@ print('};')
 
 
 tb = BeautifulSoup(requests.get('http://www.thonky.com/qr-code-tutorial/structure-final-message').text,'html.parser').find_all('table')[5];
-print('static int a[] = {', end = '')
+print('static int qr_remainder_bits [] = {', end = '')
 for tr in tb.find_all('tr'):
     tds =  tr.find_all('td')
     if len(tds) > 1:

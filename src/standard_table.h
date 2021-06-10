@@ -501,7 +501,7 @@ static qr_error_correction_parameter_t qr_error_correction_parameter [40][4] =
         { 30, 20, 15, 61, 16} // level H
     } 
 };
-static int a[] = {0, 7, 7, 7, 7, 7, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, };
+static int qr_remainder_bits [] = {0, 7, 7, 7, 7, 7, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, };
 
 static const char * format [] = {
         "111011111000100",

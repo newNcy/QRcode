@@ -2,6 +2,21 @@
 import requests
 from bs4 import BeautifulSoup
 
+def gen_alignment_locations():
+    tb = BeautifulSoup(requests.get('https://www.thonky.com/qr-code-tutorial/alignment-pattern-locations').text,'html.parser').find_all('table')[1];
+    rows = tb.find_all('tr')
+    print('static int qr_alignment_location [][7] =')
+    print('{\n    { },')
+    for i in range(1, len(rows)):
+        cols = rows[i].find_all('td')
+        if len(cols) < 2:
+            continue
+        print('    {', end = ' ')
+        for j in range(1, len(cols)):
+            if cols[j].string :
+                print(cols[j].string, end = ',')
+        print('},')
+    print('};')
 
 print('#pragma once\n\n')
 print('/* gen by make_constants.py */\n\n')
@@ -47,6 +62,7 @@ print('    int data_codeword_per_block1;')
 print('    int group2_blocks;')
 print('    int data_codeword_per_block2;')
 print('}qr_error_correction_parameter_t;')
+print('')
 print('static qr_error_correction_parameter_t qr_error_correction_parameter [40][4] =')
 print('{')
 trs = tb.find_all('tr')
@@ -89,6 +105,8 @@ for tr in tb.find_all('tr'):
         print(tds[1].string+', ',end = '')
 print('};')
         
+
+gen_alignment_locations()
 
 html = requests.get('http://www.thonky.com/qr-code-tutorial/format-version-tables').text
 soup = BeautifulSoup(html,'html.parser');

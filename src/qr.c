@@ -39,68 +39,6 @@ struct qr_decoder_t
 typedef struct qr_decoder_t qr_decoder_t;
 
 
-
-/*
- * 生成纠错码
- * 使用长除法 过程需要两个多项式，一个是需要编码的数据，一个是生成多项式
- */
-void qr_encoder_generate_error_correction_codeword(qr_encoder_t * encoder)
-{
-	uint32_t ec_per_block = encoder->ec_param.ec_codeword_per_block;
-	uint32_t ec_codeword_count =  ec_per_block * (encoder->ec_param.group1_blocks + encoder->ec_param.group2_blocks);
-	encoder->ec_codeword_count = ec_codeword_count;
-	bit_stream_resize(&encoder->ec_codewords, ec_codeword_count * 8);
-
-	polynomial_t generator = make_generator_polynomial(ec_per_block);
-	polynomial_print(generator);
-	//group1
-	int data_codeword_count = encoder->ec_param.data_codeword_per_block1;
-	int ec_block_idx = 0;
-	for (int block = 0; block < encoder->ec_param.group1_blocks; ++ block) {
-		byte_t * data_start = encoder->data_codewords.data + data_codeword_count*block;
-		polynomial_t error_code = reed_solomon(generator, data_start, data_codeword_count);
-		polynomial_copy_to_bytes(error_code, encoder->ec_codewords.data + ec_block_idx*ec_per_block, ec_per_block);
-		encoder->ec_codewords.pos += ec_per_block*8;
-		ec_block_idx ++;
-	}
-}
-
-void qr_encoder_reset_interleave(qr_encoder_t * encoder)
-{
-	encoder->interleave_group_id = 0;
-	encoder->interleave_block_id = 0;
-	encoder->interleave_codeword_id = 0;
-	encoder->interleaved_count = 0;
-}
-
-uint32_t qr_encoder_interleave_left(qr_encoder_t * encoder)
-{
-	qr_error_correction_parameter_t ec_param = encoder->ec_param;
-	return ec_param.data_codeword_per_block1 * ec_param.group1_blocks + ec_param.data_codeword_per_block2 * ec_param.group2_blocks + ec_param.ec_codeword_per_block*(ec_param.group1_blocks+ec_param.group2_blocks) - encoder->interleaved_count;
-}
-
-byte_t qr_encoder_get_interleaved_codeword(qr_encoder_t * encoder)
-{
-	qr_error_correction_parameter_t ec_param = encoder->ec_param;
-	assert(encoder->interleaved_count < encoder->data_codeword_count + encoder->ec_codeword_count);
-	byte_t codeword;
-
-	if (encoder->interleaved_count >  encoder->data_codeword_count) {
-		codeword = encoder->data_codewords.data[encoder->interleave_codeword_id];
-		encoder->interleave_codeword_id += group_size;
-	}else {
-	}
-	return codeword;
-}
-
-void qr_encoder_fill_modules(qr_encoder_t * encoder, qr_t qr)
-{
-	int x = qr.size-1;
-	int y = qr.size-1;
-	while (qr_encoder_interleave_left(encoder)) {
-	}
-}
-
 void qr_set_module(qr_t qr, int x, int y, byte_t module)
 {
 	if (x <0 || y < 0 || qr.size - x < 1 || qr.size - y < 1) {
@@ -214,9 +152,9 @@ void qr_add_reserve(qr_t qr)
 void qr_print(qr_t qr)
 {
 	//white black none reserve
-	char module_char[] = {' ', 'x', '.', '@'};
-	for (int x = 0; x < qr.size; ++ x) {
-		for (int y = 0; y < qr.size; ++ y) {
+	char module_char[] = {'.', 'H', ' ', '@'};
+	for (int y = 0; y < qr.size; ++ y) {
+		for (int x = 0; x < qr.size; ++ x) {
 			printf(" %c",module_char[qr_get_module(qr, x, y)]);
 		}
 		printf("\n");
@@ -254,12 +192,127 @@ qr_t qr_construct_shell(int version)
 	qr_add_timing_patterns(qr);
 
 	//dark
-	qr_set_module(qr, 4*(version+1)+9,8, QR_MODULE_BLACK);
+	qr_set_module(qr, 8,4*(version+1)+9, QR_MODULE_BLACK);
 
 	//reserve for format and version
 	qr_add_reserve(qr);
-	qr_print(qr);
 	return qr;
+}
+
+
+/*
+ * 生成纠错码
+ * 使用长除法 过程需要两个多项式，一个是需要编码的数据，一个是生成多项式
+ */
+void qr_encoder_generate_error_correction_codeword(qr_encoder_t * encoder)
+{
+	uint32_t ec_per_block = encoder->ec_param.ec_codeword_per_block;
+	uint32_t ec_codeword_count =  ec_per_block * (encoder->ec_param.group1_blocks + encoder->ec_param.group2_blocks);
+	encoder->ec_codeword_count = ec_codeword_count;
+	bit_stream_resize(&encoder->ec_codewords, ec_codeword_count * 8);
+
+	polynomial_t generator = make_generator_polynomial(ec_per_block);
+	polynomial_print(generator);
+	//group1
+	int data_codeword_count = encoder->ec_param.data_codeword_per_block1;
+	int ec_block_idx = 0;
+	for (int block = 0; block < encoder->ec_param.group1_blocks; ++ block) {
+		byte_t * data_start = encoder->data_codewords.data + data_codeword_count*block;
+		polynomial_t error_code = reed_solomon(generator, data_start, data_codeword_count);
+		polynomial_copy_to_bytes(error_code, encoder->ec_codewords.data + ec_block_idx*ec_per_block, ec_per_block);
+		encoder->ec_codewords.pos += ec_per_block*8;
+		ec_block_idx ++;
+	}
+}
+
+void qr_encoder_reset_interleave(qr_encoder_t * encoder)
+{
+	encoder->interleave_group_id = 0;
+	encoder->interleave_block_id = 0;
+	encoder->interleave_codeword_id = 0;
+	encoder->interleaved_count = 0;
+}
+
+uint32_t qr_encoder_interleave_left(qr_encoder_t * encoder)
+{
+	qr_error_correction_parameter_t ec_param = encoder->ec_param;
+	return ec_param.data_codeword_per_block1 * ec_param.group1_blocks + ec_param.data_codeword_per_block2 * ec_param.group2_blocks + ec_param.ec_codeword_per_block*(ec_param.group1_blocks+ec_param.group2_blocks) - encoder->interleaved_count;
+}
+
+byte_t qr_encoder_get_interleaved_codeword(qr_encoder_t * encoder)
+{
+	qr_error_correction_parameter_t ec_param = encoder->ec_param;
+	assert(encoder->interleaved_count < encoder->data_codeword_count + encoder->ec_codeword_count);
+	byte_t codeword;
+
+	if (encoder->interleaved_count <  encoder->data_codeword_count) {
+		codeword = encoder->data_codewords.data[encoder->interleave_codeword_id];
+		int block_size1 = ec_param.data_codeword_per_block1;
+		int block_size2 = ec_param.data_codeword_per_block2;
+		int group_size1 = ec_param.data_codeword_per_block1 * ec_param.group1_blocks;
+		int group_size2 = ec_param.data_codeword_per_block2 * ec_param.group2_blocks;
+		int step = block_size1;
+		if (encoder->interleave_codeword_id >= group_size1 && group_size2 > 0) {
+			step = block_size2;
+		}
+		//printf("%d %d %d %d %d\n", block_size1, block_size2, group_size1, group_size2, step);
+		encoder->interleave_codeword_id += step;
+		int beyond = encoder->interleave_codeword_id - encoder->data_codeword_count;
+		if (beyond >= 0) {
+			encoder->interleave_codeword_id = beyond + 1;
+			if (encoder->interleave_codeword_id >= block_size1) {
+				encoder->interleave_codeword_id += group_size1;
+			}
+		} 		
+	}else {
+		if (encoder->interleaved_count == encoder->data_codeword_count) {
+			encoder->interleave_codeword_id = 0;
+		}
+		codeword = encoder->ec_codewords.data[encoder->interleave_codeword_id];
+		encoder->interleave_codeword_id += ec_param.ec_codeword_per_block;
+		int beyond = encoder->interleave_codeword_id - encoder->ec_codeword_count;
+		if (beyond >= 0) {
+			encoder->interleave_codeword_id = beyond + 1;
+		}
+	}
+	encoder->interleaved_count ++;
+	return codeword;
+}
+
+void qr_encoder_fill_modules(qr_encoder_t * encoder, qr_t qr)
+{
+	qr_encoder_reset_interleave(encoder);
+	int x = qr.size-1;
+	int y = qr.size-1;
+	int upping = 1; 
+	int left = 0; //0 up 1 down
+	while (qr_encoder_interleave_left(encoder)) {
+		byte_t codeword = qr_encoder_get_interleaved_codeword(encoder);
+		//bitwise
+		for (int i = 0; i < 8; ++ i) {
+			byte_t bit = (codeword>>(8-i-1)) & 1;
+			if (qr_get_module(qr, x, y) == QR_MODULE_RESERVE) {
+				i --;
+			} else {
+				qr_set_module(qr, x, y, bit);
+			}
+			if (upping) {
+				if (left) {
+					x ++;
+					y --;
+				}else {
+					x --;
+				}
+				if (y < 0) {
+					upping = 0;
+					break;
+				}
+			}
+			left ^= 1;
+		}
+		qr_print(qr);
+		break;
+	}
 }
 
 
@@ -292,7 +345,7 @@ qr_t qr_create(byte_t* bytes, qr_code_mode_enum mode, qr_error_correction_level_
 	qr_error_correction_parameter_t ec_param = qr_error_correction_parameter[version][ec_level];
 	encoder.ec_param = ec_param;
 
-	uint32_t data_codeword_count = ec_param.group1_blocks *ec_param.data_codeword_per_block2 + ec_param.group2_blocks * ec_param.data_codeword_per_block2;
+	uint32_t data_codeword_count = ec_param.group1_blocks *ec_param.data_codeword_per_block1 + ec_param.group2_blocks * ec_param.data_codeword_per_block2;
 	encoder.data_codeword_count = data_codeword_count;
 
 	bit_stream_resize(&encoder.data_codewords, data_codeword_count * 8);

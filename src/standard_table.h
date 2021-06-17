@@ -547,7 +547,7 @@ static int qr_alignment_location [][7] =
     { 6,30,58,86,114,142,170,},
 };
 
-static const char * format [] = {
+static const char * qr_format_and_version [] = {
         "111011111000100",
         "111001011110011",
         "111110110101010",

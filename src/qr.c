@@ -26,6 +26,8 @@ struct qr_encoder_t
 	int interleave_block_id;
 	int interleave_codeword_id;
 	int interleaved_count;
+
+    int mask;
 };
 typedef struct qr_encoder_t qr_encoder_t;
 
@@ -105,7 +107,7 @@ void qr_add_alignment_pattern(qr_t qr, int x, int y)
 
 void qr_add_timing_patterns(qr_t qr)
 {
-	int pos = 5;
+	int pos = 6;
 	for (int i = 0; i < qr.size; ++ i) {
 		if (qr_get_module(qr, i, pos) == QR_MODULE_NONE) {
 			qr_set_module(qr, i, pos, (i+1)%2);
@@ -137,7 +139,7 @@ void qr_add_reserve(qr_t qr)
 
 	//version
 	if (qr.version > 5) {
-		for (int i = 0; i < 5; ++i) {
+		for (int i = 0; i < 6; ++i) {
 			qr_set_reserve_module(qr, i, qr.size-9);
 			qr_set_reserve_module(qr, i, qr.size-10);
 			qr_set_reserve_module(qr, i, qr.size-11);
@@ -152,10 +154,16 @@ void qr_add_reserve(qr_t qr)
 void qr_print(qr_t qr)
 {
 	//white black none reserve
-	char module_char[] = {'.', 'H', ' ', '@'};
+	char * module_char[] = 
+    {
+        "\e[47m  \e[0m", 
+        "  ",
+        "\e[45m  \e[0m", 
+        "\e[44m  \e[0m", 
+    };
 	for (int y = 0; y < qr.size; ++ y) {
 		for (int x = 0; x < qr.size; ++ x) {
-			printf(" %c",module_char[qr_get_module(qr, x, y)]);
+			printf("%s",module_char[qr_get_module(qr, x, y)]);
 		}
 		printf("\n");
 	}
@@ -180,8 +188,8 @@ qr_t qr_construct_shell(int version)
 	//alignment patterns
 	for (int i = 0; i < 7; ++i) {
 		for (int j = 0; j < 7; ++j) {
-			int x = qr_alignment_location[version][i] - 1;
-			int y = qr_alignment_location[version][j] - 1;
+			int x = qr_alignment_location[version][i];
+			int y = qr_alignment_location[version][j];
 			if (x>0 && y>0) {
 				qr_add_alignment_pattern(qr, x, y);
 			}
@@ -206,6 +214,7 @@ qr_t qr_construct_shell(int version)
  */
 void qr_encoder_generate_error_correction_codeword(qr_encoder_t * encoder)
 {
+	qr_error_correction_parameter_t ec_param = encoder->ec_param;
 	uint32_t ec_per_block = encoder->ec_param.ec_codeword_per_block;
 	uint32_t ec_codeword_count =  ec_per_block * (encoder->ec_param.group1_blocks + encoder->ec_param.group2_blocks);
 	encoder->ec_codeword_count = ec_codeword_count;
@@ -223,6 +232,16 @@ void qr_encoder_generate_error_correction_codeword(qr_encoder_t * encoder)
 		encoder->ec_codewords.pos += ec_per_block*8;
 		ec_block_idx ++;
 	}
+    //group2
+	data_codeword_count = encoder->ec_param.data_codeword_per_block2;
+    for (int block = 0; block < encoder->ec_param.group2_blocks; ++ block) {
+		byte_t * data_start = encoder->data_codewords.data + data_codeword_count*block + ec_param.group1_blocks * ec_param.data_codeword_per_block1;
+		polynomial_t error_code = reed_solomon(generator, data_start, data_codeword_count);
+		polynomial_copy_to_bytes(error_code, encoder->ec_codewords.data + ec_block_idx*ec_per_block, ec_per_block);
+		encoder->ec_codewords.pos += ec_per_block*8;
+		ec_block_idx ++;
+	}
+
 }
 
 void qr_encoder_reset_interleave(qr_encoder_t * encoder)
@@ -279,9 +298,28 @@ byte_t qr_encoder_get_interleaved_codeword(qr_encoder_t * encoder)
 	return codeword;
 }
 
-void qr_encoder_fill_modules(qr_encoder_t * encoder, qr_t qr)
+
+byte_t qr_encoder_mask_module(qr_encoder_t * encoder, int x,int y, byte_t origin)
+{
+    byte_t mask = 0;
+    switch(encoder->mask) {
+        case 0: mask = (y+x)%2; break;
+        case 1: mask = y%2; break;
+        case 2: mask = x%3; break;
+        case 3: mask = (x+y)%3; break;
+        case 4: mask = (int)(floor((double)y/2) + floor((double)x/3))%2; break;
+        case 5: mask = (x*y)%2 + (x*y)%3; break;
+        case 6: mask = ((x*y)%2 + (x*y)%3)%2; break;
+        case 7: mask = ((x+y)%2 + (x*y)%3)%2; break;
+    }
+    return origin ^ !mask;
+}
+
+
+void qr_encoder_fill_data_modules(qr_encoder_t * encoder, qr_t qr)
 {
 	qr_encoder_reset_interleave(encoder);
+    int remain = 0;
 	int x = qr.size-1;
 	int y = qr.size-1;
 	int upping = 1; 
@@ -291,9 +329,10 @@ void qr_encoder_fill_modules(qr_encoder_t * encoder, qr_t qr)
 		//bitwise
 		for (int i = 0; i < 8; ++ i) {
 			byte_t bit = (codeword>>(8-i-1)) & 1;
-			if (qr_get_module(qr, x, y) == QR_MODULE_RESERVE) {
+			if (qr_get_module(qr, x, y) != QR_MODULE_NONE) {
 				i --;
 			} else {
+                bit = qr_encoder_mask_module(encoder, x, y, bit);
 				qr_set_module(qr, x, y, bit);
 			}
 			if (upping) {
@@ -305,14 +344,67 @@ void qr_encoder_fill_modules(qr_encoder_t * encoder, qr_t qr)
 				}
 				if (y < 0) {
 					upping = 0;
-					break;
+                    x -= 2;
 				}
-			}
+			} else {
+                if (left) {
+                    x ++;
+                    y ++;
+                } else {
+                    x --;
+                }
+                if (y >= qr.size) {
+                    upping = 1;
+                    x -= 2;
+                }
+            }
+            if (x == 6) { //vertical timing
+                if (left) {
+                    x ++;
+                } else {
+                    x --;
+                }
+            }
 			left ^= 1;
 		}
-		qr_print(qr);
-		break;
+		//qr_print(qr);
+        //printf("\n");
 	}
+
+}
+
+void qr_encoder_fill_format_version_modules(qr_encoder_t * encoder, qr_t qr)
+{
+    const char * format = qr_format_and_version[encoder->ec_level*8 + encoder->mask];
+
+    int add = 0;
+    for (int i = 0; i < 7; ++i) {
+        add = i > 5;
+        qr_set_module(qr, i+add, 8, format[i] == '1');
+        qr_set_module(qr, 8, i+add, format[14-i] == '1');
+    }
+    qr_set_module(qr, 8, 8, format[7] == '1');
+    qr_set_module(qr, qr.size-8, 8, format[7] == '1');
+
+    for (int i = 0; i < 7; ++i) {
+        qr_set_module(qr, 8, qr.size-1-i, format[i] == '1');
+        qr_set_module(qr, qr.size-1-i,8,format[14-i] == '1');
+    }
+
+    printf("format string %s\n", format);
+    //version info
+    if (qr.version > 5) {
+        const char * version = qr_format_and_version[32 + qr.version -6];
+        printf("version string %s\n", version);
+        for (int i = 0; i < 6; ++ i) {
+            for (int j = 0; j < 3; ++ j) {
+                int idx = 17 - (i*3+j);
+                qr_set_module(qr, i, qr.size-11+j, version[idx] == '1');
+                qr_set_module(qr, qr.size-11+j, i, version[idx] == '1');
+            }
+        }
+    }
+
 }
 
 
@@ -337,6 +429,7 @@ qr_t qr_create(byte_t* bytes, qr_code_mode_enum mode, qr_error_correction_level_
 	}
 
 	qr_encoder_t encoder = {0};
+    encoder.mask = 1;
 	encoder.mode = mode;
 	encoder.ec_level = ec_level;
 	encoder.version = version;
@@ -388,7 +481,9 @@ qr_t qr_create(byte_t* bytes, qr_code_mode_enum mode, qr_error_correction_level_
 
 	qr_t qr = qr_construct_shell(version);
 
-	qr_encoder_fill_modules(&encoder, qr);
+	qr_encoder_fill_data_modules(&encoder, qr);
+	qr_encoder_fill_format_version_modules(&encoder, qr);
 
+    qr_print(qr);
     return qr;
 }

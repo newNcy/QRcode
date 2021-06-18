@@ -29,6 +29,7 @@ enum qr_module_enum
 	QR_MODULE_BLACK,
 	QR_MODULE_NONE,
 	QR_MODULE_RESERVE,
+	QR_MODULE_INVALID,
 };
 
 /*

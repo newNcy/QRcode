@@ -44,6 +44,14 @@ typedef struct qr_decoder_t qr_decoder_t;
 void qr_set_module(qr_t qr, int x, int y, byte_t module)
 {
 	if (x <0 || y < 0 || qr.size - x < 1 || qr.size - y < 1) {
+		assert(x>=0);
+		assert(x<qr.size);
+		printf("%d %d\n",x, y);
+		fflush(stdout);
+		char * a = NULL;
+		*a = 'b';
+		assert(y>=0);
+		assert(y<qr.size);
 		return;
 	}
 	qr.modules[y*qr.size + x] = module;
@@ -52,7 +60,7 @@ void qr_set_module(qr_t qr, int x, int y, byte_t module)
 byte_t qr_get_module(qr_t qr, int x, int y)
 {
 	if (x <0 || y < 0 || qr.size - x < 1 || qr.size - y < 1) {
-		return 0;
+		return QR_MODULE_INVALID;
 	}
 	return qr.modules[y*qr.size + x];
 }
@@ -160,9 +168,11 @@ void qr_print(qr_t qr)
         "  ",
         "\e[45m  \e[0m", 
         "\e[44m  \e[0m", 
+        "\e[47m  \e[0m", 
     };
-	for (int y = 0; y < qr.size; ++ y) {
-		for (int x = 0; x < qr.size; ++ x) {
+	int border = 0;
+	for (int y = -border; y < qr.size+border; ++ y) {
+		for (int x = -border; x < qr.size+border; ++ x) {
 			printf("%s",module_char[qr_get_module(qr, x, y)]);
 		}
 		printf("\n");

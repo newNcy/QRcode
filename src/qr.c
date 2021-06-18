@@ -168,9 +168,9 @@ void qr_print(qr_t qr)
         "  ",
         "\e[45m  \e[0m", 
         "\e[44m  \e[0m", 
-        "\e[47m  \e[0m", 
+        "\e[46m  \e[0m", 
     };
-	int border = 0;
+	int border = 2;
 	for (int y = -border; y < qr.size+border; ++ y) {
 		for (int x = -border; x < qr.size+border; ++ x) {
 			printf("%s",module_char[qr_get_module(qr, x, y)]);
@@ -334,16 +334,30 @@ void qr_encoder_fill_data_modules(qr_encoder_t * encoder, qr_t qr)
 	int y = qr.size-1;
 	int upping = 1; 
 	int left = 0; //0 up 1 down
+	printf("data ");
+	for (int i = 0; i < encoder->data_codeword_count; ++i) {
+		printf("%x ",encoder->data_codewords.data[i]);
+	}
+	printf("\necc ");
+	for (int i = 0; i < encoder->ec_codeword_count; ++i) {
+		printf("%x ",encoder->ec_codewords.data[i]);
+	}
+	printf("\n");
 	while (qr_encoder_interleave_left(encoder)) {
 		byte_t codeword = qr_encoder_get_interleaved_codeword(encoder);
+		printf("%d ",codeword);
 		//bitwise
 		for (int i = 0; i < 8; ++ i) {
 			byte_t bit = (codeword>>(8-i-1)) & 1;
 			if (qr_get_module(qr, x, y) != QR_MODULE_NONE) {
 				i --;
 			} else {
-                bit = qr_encoder_mask_module(encoder, x, y, bit);
-				qr_set_module(qr, x, y, bit);
+				if (codeword != QR_MODULE_INVALID) {
+					bit = qr_encoder_mask_module(encoder, x, y, bit);
+					qr_set_module(qr, x, y, bit);
+				} else {
+					qr_set_module(qr, x, y, QR_MODULE_INVALID);
+				}
 			}
 			if (upping) {
 				if (left) {
@@ -439,7 +453,7 @@ qr_t qr_create(byte_t* bytes, qr_code_mode_enum mode, qr_error_correction_level_
 	}
 
 	qr_encoder_t encoder = {0};
-    encoder.mask = 1;
+    encoder.mask = 0;
 	encoder.mode = mode;
 	encoder.ec_level = ec_level;
 	encoder.version = version;
@@ -472,7 +486,7 @@ qr_t qr_create(byte_t* bytes, qr_code_mode_enum mode, qr_error_correction_level_
     uint32_t require_bits = data_codeword_count * 8;
     //如果此时bit string的长度不到require_bits,最多填四个0在末尾
     if (encoder.data_codewords.pos < require_bits) {
-        bit_stream_push_bits(&encoder.data_codewords, 0, max(4, require_bits - encoder.data_codewords.pos));
+        bit_stream_push_bits(&encoder.data_codewords, 0, min(4, require_bits - encoder.data_codewords.pos));
     }
     //如果还不足再加一些0让它是8的倍数，也就是整字节
     if (encoder.data_codewords.pos%8 != 0) {
@@ -490,10 +504,15 @@ qr_t qr_create(byte_t* bytes, qr_code_mode_enum mode, qr_error_correction_level_
     qr_encoder_generate_error_correction_codeword(&encoder);
 
 	qr_t qr = qr_construct_shell(version);
+	qr_encoder_fill_format_version_modules(&encoder, qr);
 
 	qr_encoder_fill_data_modules(&encoder, qr);
-	qr_encoder_fill_format_version_modules(&encoder, qr);
 
     qr_print(qr);
     return qr;
+}
+
+void qr_destroy(qr_t qr)
+{
+	free(qr.modules);
 }

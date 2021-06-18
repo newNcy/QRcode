@@ -12,6 +12,7 @@ set(LIBRARY_OUTPUT_PATH lib)
 #add_library(rs-static SHARED src/reed-solomon.c)
 
 include_directories(src)
+include_directories(third_part/stb)
 set (QR_SOURCE src)
 add_library(qr 
     src/qr.c 
@@ -22,4 +23,5 @@ add_library(qr
 #添加可执行程序
 add_executable(main main.c)
 target_link_libraries(main qr)
+
 

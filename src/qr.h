@@ -2,6 +2,9 @@
 #include "standard_table.h"
 #include "bit_stream.h"
 
+#ifndef QR_API 
+#define QR_API
+#endif
 enum qr_code_mode_enum
 {
 	NUMERIC,
@@ -44,10 +47,10 @@ struct qr_t
 };
 typedef struct qr_t qr_t;
 
-qr_t qr_create(byte_t * bytes, qr_code_mode_enum mode, qr_error_correction_level_enum ec_level);
-void qr_print(qr_t qr);
+qr_t QR_API qr_create(byte_t * bytes, qr_code_mode_enum mode, qr_error_correction_level_enum ec_level);
+void QR_API qr_print(qr_t qr);
 
-void qr_destroy(qr_t qr);
+void QR_API qr_destroy(qr_t qr);
 
 
 

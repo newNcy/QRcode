@@ -18,10 +18,18 @@ add_library(qr
     src/qr.c 
     src/bit_stream.c
     src/reed_solomon.c
+    src/reed_solomon.c
     )
+
+add_library(decoder 
+    src/regonizer.c
+    src/array.c
+    )
+
+
 
 #添加可执行程序
 add_executable(main main.c)
-target_link_libraries(main qr)
+target_link_libraries(main qr decoder)
 
 

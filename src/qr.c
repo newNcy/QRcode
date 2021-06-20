@@ -32,15 +32,6 @@ struct qr_encoder_t
 typedef struct qr_encoder_t qr_encoder_t;
 
 
-/*
- * 解码器
- */
-struct qr_decoder_t
-{
-};
-typedef struct qr_decoder_t qr_decoder_t;
-
-
 void qr_set_module(qr_t qr, int x, int y, byte_t module)
 {
 	if (x <0 || y < 0 || qr.size - x < 1 || qr.size - y < 1) {

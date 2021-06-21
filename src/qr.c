@@ -350,6 +350,13 @@ void qr_encoder_fill_data_modules(qr_encoder_t * encoder, qr_t qr)
 					qr_set_module(qr, x, y, QR_MODULE_INVALID);
 				}
 			}
+			if (x == 6) { //vertical timing
+                if (left) {
+                    x ++;
+                } else {
+                    x --;
+                }
+            }
 			if (upping) {
 				if (left) {
 					x ++;
@@ -373,13 +380,7 @@ void qr_encoder_fill_data_modules(qr_encoder_t * encoder, qr_t qr)
                     x -= 2;
                 }
             }
-            if (x == 6) { //vertical timing
-                if (left) {
-                    x ++;
-                } else {
-                    x --;
-                }
-            }
+            
 			left ^= 1;
 		}
 		//qr_print(qr);

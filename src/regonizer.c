@@ -151,6 +151,16 @@ void qr_regonizer_init(qr_regonizer_t * regonizer)
     array_init(&regonizer->finder_patterns, sizeof(qr_finder_pattern_t));
 }
 
+int check_finder_pattern(int r[])
+{
+	int check1 = eq1(r[0], r[1]) && eq1(r[1], r[3]) && eq1(r[3],r[4]) && eq1(r[0], r[4]);
+	int check3 = eq1(r[2], 3*r[0])&& eq1(r[2], 3*r[1])&& eq1(r[2], 3*r[3])&& eq1(r[2], 3*r[4]);
+	int check3_2 = !eq1(r[2], r[0]) && !eq1(r[2], r[1]) && !eq1(r[2], r[3]) && !eq1(r[2], r[4]);
+	int check5 = eq1(r[2] + r[1]+r[3], 5*r[0]);
+	int check7 = eq1(r[2] + r[1]+r[3] + r[0]+r[4], 7*r[0]);
+	return check1 && check3 && check3_2 && check5 && check7;
+}
+
 
 int qr_regonizer_scan_finder_patterns(qr_regonizer_t * regonizer, byte_t * gray, int w, int h)
 {
@@ -166,102 +176,39 @@ int qr_regonizer_scan_finder_patterns(qr_regonizer_t * regonizer, byte_t * gray,
             byte_t * c = bin+ y*w + x;
             if (*c != pre) {
                 state ++;
-                if (state > 4 && eq1(r[0], r[1]) && eq1(r[1], r[3]) && eq1(r[3],r[4]) && eq1(r[2], 3*r[0])&& eq1(r[2], 3*r[1])&& eq1(r[2], 3*r[3])&& eq1(r[2], 3*r[4])) {
-                    qr_finder_pattern_t finder_pattern = 
-                    {
-                        {0, 0},
-                        {start[0], y},
-                        {x-1, y},
-                        0
-                    };
-                    //array_push(&regonizer->finder_patterns, &finder_pattern);
-                    
-                }
-                pre = *c;
-                for (int i = 0; i < 4; ++i) {
-                    r[i] = r[i+1];
-                    start[i] = start[i+1];
-                }
-                r[4] = 1;
-                start[4] = x;
-            }else {
-                r[4] ++;
-            }
-        }
-    }
-    for (int x = 1; x < w; ++ x) {
-        int r[5] = {0, 0, 0, 0, 1}; //record
-        int start []= {0, 0, 0,0,0};
-        int state = 0;
-        int q = 0;
-		byte_t pre = bin[0*w+x];
-        for (int y = 1; y < h; ++ y) {
-            byte_t * c = bin+ y*w + x;
-            if (*c != pre) {
-                state ++;
-                if (state > 4 && eq1(r[0], r[1]) && eq1(r[1], r[3]) && eq1(r[3],r[4]) && eq1(r[2], 3*r[0])&& eq1(r[2], 3*r[1])&& eq1(r[2], 3*r[3])&& eq1(r[2], 3*r[4])) {
-                    qr_finder_pattern_t finder_pattern = 
-                    {
-                        {0, 0},
-                        {x, start[0]},
-                        {x, y-1},
-                        0
-                    };
-                    //array_push(&regonizer->finder_patterns, &finder_pattern);
-                }
-                pre = *c;
-                for (int i = 0; i < 4; ++i) {
-                    r[i] = r[i+1];
-                    start[i] = start[i+1];
-                }
-                r[4] = 1;
-                start[4] = y;
-            }else {
-                r[4] ++;
-            }
-        }
-    }
-    for (int y = 1; y < h; ++ y) {
-		int r[5] = {0, 0, 0, 0, 1}; //record
-		int start []= {0, 0, 0,0,0};
-		int state = 0;
-        int q = 0;
-		byte_t pre = bin[y*w+0];
-        for (int x = 1; x < w; ++ x) {
-            byte_t * c = bin+ y*w + x;
-            if (*c != pre) {
-                state ++;
+
+                if (state > 4 && check_finder_pattern(r)) {
                 //横向发现符合比例，则进行竖向扫描
-                if (state > 5 && eq1(r[0], r[1]) && eq1(r[1], r[3]) && eq1(r[3],r[4]) && eq1(r[2], 3*r[0])&& eq1(r[2], 3*r[1])&& eq1(r[2], 3*r[3]) && !eq1(r[2], r[0]) && eq1(r[2], 3*r[4])) {
                     byte_t * center = bin + y*w+(start[0]+x-1)/2;
                     byte_t t = *center;
                     byte_t * p = center - w;
                     //两个方向的计数
-                    int ur[3] = {0};
-                    int dr[3] = {0};
-                    int idx = 0;
+					int vr[5] = {0, 0, 1, 0, 0};
+                    int idx = 2;
                     int y0 = y, y1 = y;
-                    while (p > bin && idx < 3) {
+                    while (p > bin && idx < 5) {
                         if (*p != t) {
                             idx ++;
                             t = *p;
                         }
                         p = p - w;
-                        ur[idx] ++;
+                        vr[idx] ++;
                         y0 --;
                     }
 
+					//记录上半部分宽度
+					int up_part = vr[2];
                     //reset
                     t = *center;
                     p = center + w;
-                    idx = 0;
-                    while (p < bin+w*h && idx < 3) {
+                    idx = 2;
+                    while (p < bin+w*h && idx >=0) {
                         if (*p != t) {
-                            idx ++;
+                            idx --; 
                             t = *p;
                         }
                         p = p + w;
-                        dr[idx] ++;
+                        vr[idx] ++;
                         y1 ++;
                     }
                     y0 ++;
@@ -269,14 +216,14 @@ int qr_regonizer_scan_finder_patterns(qr_regonizer_t * regonizer, byte_t * gray,
 
                     //检查竖向是否符合比例
                     
-                    if (ur[0] && dr[0] && eq1(ur[1], ur[2]) && eq1(dr[1],dr[2]) && eq1(ur[2], dr[2]) && eq1(ur[0]+dr[0], ur[2]*3) && eq1(ur[0], dr[0]) && eq1(r[2], ur[0]+dr[0]) && !eq2(ur[2], ur[0]+dr[0])) {
+                    if (check_finder_pattern(vr) && eq2(up_part, vr[2]-up_part)) {
                         int center_x = (x+start[0]-1)/2;
                         qr_finder_pattern_t finder_pattern = 
                         {
                             {center_x, y},
                             {start[0] -1, y0},
                             {x-1, y1},
-                            abs(ur[0]-dr[0]),
+                            abs(vr[2]-2*up_part),
                             !pre,
                         };
                         int drop = 0;

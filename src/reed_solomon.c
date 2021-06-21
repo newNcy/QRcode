@@ -86,7 +86,7 @@ void polynomial_print(polynomial_t poly)
 	gf256_t * gf = get_gf256();
 	printf("[%d] %3d", poly.len, poly.coeffs[poly.len-1], gf->log[poly.coeffs[poly.len-1]]);
 	for (int i = poly.len - 2; i >=0; --i) {
-		printf(" ,%3d", poly.coeffs[i], gf->log[poly.coeffs[i]]);
+		printf(",%3d", poly.coeffs[i], gf->log[poly.coeffs[i]]);
 	}
 	printf("\n");
 }
@@ -137,6 +137,11 @@ polynomial_t reed_solomon(polynomial_t generator, byte_t * data, uint32_t data_l
 	for (int i = 0; i < data_len; ++ i) {
 		printf("%3d->",i+1);
         int lead_term = msg.coeffs[msg.len-1];
+		//首项系数是0则跳过，之前漏了导致有些版本某些数据算出来是错的
+		if (!lead_term) {
+			msg.len --;
+			continue;
+		}
         for (int j = 0; j < generator.len; ++ j) {
 			byte_t gen_term  = gf->exp[((int)(gf->log[generator.coeffs[generator.len-j-1]]) + gf->log[lead_term])%255];
             msg.coeffs[msg.len-j-1] = msg.coeffs[msg.len-j-1] ^ gen_term;

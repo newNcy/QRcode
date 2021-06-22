@@ -79,11 +79,9 @@ int main (int argc, char * argv[])
 	printf("hello qr code.\n");
 	//qr_t qr3 = qr_create("https://www.thonky.com/qr-code-tutorial/how-create-generator-polynomial",BYTE, ERROR_CORRECTION_Q);
  
-	/*
-	qr_t qr = qr_create("hello world",BYTE, ERROR_CORRECTION_L);
+	qr_t qr = qr_create("hello world 你好",BYTE, ERROR_CORRECTION_L);
 	fflush(stdout);
 	qr_destroy(qr);
-	*/
 
 	int w, h, n;
 	byte_t * data = stbi_load("../qrs/a.jpg", &w, &h, &n, 0);

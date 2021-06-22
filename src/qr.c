@@ -320,7 +320,6 @@ byte_t qr_encoder_mask_module(qr_encoder_t * encoder, int x,int y, byte_t origin
 void qr_encoder_fill_data_modules(qr_encoder_t * encoder, qr_t qr)
 {
 	qr_encoder_reset_interleave(encoder);
-    int remain = 0;
 	int x = qr.size-1;
 	int y = qr.size-1;
 	int upping = 1; 
@@ -334,11 +333,20 @@ void qr_encoder_fill_data_modules(qr_encoder_t * encoder, qr_t qr)
 		printf("%x ",encoder->ec_codewords.data[i]);
 	}
 	printf("\n");
-	while (qr_encoder_interleave_left(encoder)) {
-		byte_t codeword = qr_encoder_get_interleaved_codeword(encoder);
+	int remain = qr_remainder_bits[qr.version];
+	while (qr_encoder_interleave_left(encoder) || remain) {
+		int bit_count = 8;
+		byte_t codeword = 0;
+		if (!qr_encoder_interleave_left(encoder)) {
+			bit_count = remain;
+			remain = 0;
+		} else {
+			codeword = qr_encoder_get_interleaved_codeword(encoder);
+		}
+
 		printf("%d ",codeword);
 		//bitwise
-		for (int i = 0; i < 8; ++ i) {
+		for (int i = 0; i < bit_count; ++ i) {
 			byte_t bit = (codeword>>(8-i-1)) & 1;
 			if (qr_get_module(qr, x, y) != QR_MODULE_NONE) {
 				i --;
@@ -383,8 +391,6 @@ void qr_encoder_fill_data_modules(qr_encoder_t * encoder, qr_t qr)
             
 			left ^= 1;
 		}
-		//qr_print(qr);
-        //printf("\n");
 	}
 
 }

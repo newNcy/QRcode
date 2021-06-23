@@ -111,8 +111,10 @@ void gauss(double * ab, double *res, int len)
 		for (int j = i+1; j < len; ++j) {
 			res[i] -= res[j] * ab[i*(len+1) +j];
 		}
-		printf("x%d = %f\n", i, res[i]);
 	}
+    for (int i = 0 ; i < len; ++i) {
+        printf("%f ", res[i]);
+    }
 
 }
 
@@ -274,11 +276,18 @@ int main (int argc, char * argv[])
 			{tw/4*3, th/4*3},
 			{tw/4, th/4*3},
 		};
+        /*
 		double c[9] = {0};
         c[8] = 1;
         double c2[9] = {0.79, -0.24, 8378, 0.828, 4.36, 2152, 0.00041, -0.00025, 26.0338};
-		get_perspective_transform(dst, src, c);
+		get_perspective_transform(src, dst, c);
         inverse(c, c2);
+        */
+        double c[] = {
+        0.221901	,-0.009565,	321.049318,
+0.031149	,0.171227	,82.508858,
+0	,-0.000009	,0.998195
+        };
 		byte_t * trans = (byte_t*)malloc(tw*th);
         memset(trans, 0, tw*th);
 		for (int v = 0; v < th; ++ v) {

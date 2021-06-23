@@ -74,18 +74,86 @@ void rect(byte_t *data, int w, int x0, int y0, int x1, int y1, byte_t r, byte_t 
     line(data, w, x1,y0, x1, y1, r, g, b);
 }
 
+/*
+ * 高斯消元法解线性方程组
+ */
+void gauss(double * ab, double *res, int len)
+{
+	for (int i = 0; i < len; ++ i) {
+		printf("%g*X%d", ab[i*(len+1)], len);
+		for (int j = 1; j < len; ++ j) {
+			printf(" + %g*X%d", ab[i*(len+1)+j], len-i);
+		}
+		printf(" = %g\n", ab[i*(len+1)+len]);
+	}
+	for (int i = 0; i < len; ++ i) {
+		for (int j = 0; j < i; ++ j) {
+			double lead = ab[i*(len+1)+j];
+			if (lead != 0) {
+				for (int k = 0; k < len+1; ++k) {
+					ab[i * (len+1)+k] -= ab[j*(len+1)+k]*lead;
+				}
+			}
+		}
+
+		double lead = ab[i * (len+1)+i];
+		if (lead != 0) {
+			for (int j = i; j < len+1; ++ j) {
+				ab[i *(len+1)+ j] /= lead;
+			}
+		}
+	}
+
+	//回代
+	for (int i = len-1; i >=0; --i) {
+		//用第j行带入式子i
+		res[i] = ab[i*(len+1)+len];
+		for (int j = i+1; j < len; ++j) {
+			res[i] -= res[j] * ab[i*(len+1) +j];
+		}
+		printf("x%d = %f\n", i, res[i]);
+	}
+
+}
+
+/*
+ * 高斯消元求逆
+ */
+void gauss_inverse()
+{
+}
+
+void get_perspective_transform(vec2_t s[4], vec2_t d[4], double * res)
+{
+	double ab [] = 
+	{
+		s[0].x, s[0].y, 1, 0,0,0, -s[0].x*d[0].x, -s[0].y*d[0].x, d[0].x,
+		s[1].x, s[1].y, 1, 0,0,0, -s[1].x*d[1].x, -s[1].y*d[1].x, d[1].x,
+		s[2].x, s[2].y, 1, 0,0,0, -s[2].x*d[2].x, -s[2].y*d[2].x, d[2].x,
+		s[3].x, s[3].y, 1, 0,0,0, -s[3].x*d[3].x, -s[3].y*d[3].x, d[3].x,
+		
+		0,0,0, s[0].x, s[0].y, 1, -s[0].x*d[0].y, -s[0].y*d[0].y, d[0].y,
+		0,0,0, s[1].x, s[1].y, 1, -s[1].x*d[1].y, -s[1].y*d[1].y, d[1].y,
+		0,0,0, s[2].x, s[2].y, 1, -s[2].x*d[2].y, -s[2].y*d[2].y, d[2].y,
+		0,0,0, s[3].x, s[3].y, 1, -s[3].x*d[3].y, -s[3].y*d[3].y, d[3].y
+	};
+	gauss(ab, res, 8);
+}
+
 int main (int argc, char * argv[])
 {
 	printf("hello qr code.\n");
 	//qr_t qr3 = qr_create("https://www.thonky.com/qr-code-tutorial/how-create-generator-polynomial",BYTE, ERROR_CORRECTION_Q);
  
+	/*
 	qr_t qr = qr_create("hello world 你好",BYTE, ERROR_CORRECTION_L);
 	fflush(stdout);
 	qr_destroy(qr);
+	*/
 
 	int w, h, n;
 	byte_t * data = stbi_load("../qrs/a.jpg", &w, &h, &n, 0);
-	int max_w = 1024;
+	int max_w = 512;
 	int tw = w>max_w?max_w:w, th = (int)(h * tw*1.0/w);
 	byte_t * pro = (byte_t*)malloc(tw*th*n);
 	byte_t * gray = (byte_t*)malloc(tw*th);
@@ -185,8 +253,33 @@ int main (int argc, char * argv[])
             up_right = f2->center;
         }
         set_pixel(pro, tw, down_left.x, down_left.y, 255,0, 255);
+
+		vec2_t src[] = 
+		{
+			up_left, up_right, down_right, down_left
+		};
+		vec2_t dst[] = 
+		{
+			{tw/4, th/4},
+			{tw/4*3, th/4},
+			{tw/4*3, th/4*3},
+			{tw/4, th/4*3},
+		};
+		double c[8] = {0};
+		get_perspective_transform(src, dst, c);
+		byte_t * trans = (byte_t*)malloc(tw*th);
+		for (int v = 0; v < th; ++ v) {
+			for (int u = 0; u < tw; ++ u) {
+				int x = (c[0]*u+c[1]*v+c[2])/(c[6]*u + c[7]*v + 1);
+				int y = (c[3]*u+c[4]*v+c[5])/(c[6]*u + c[7]*v + 1);
+				if (x>=0 && x < tw && y >= 0 && y < th) {
+					trans[y*tw+x] = gray[v*tw+u];
+				}
+			}
+		}
+		stbi_write_png("trans.png", tw, th, 1, trans, tw);
     }
-        adaptive_thresholding(gray, gray, tw, th);
+	adaptive_thresholding(gray, gray, tw, th);
 	for (int y = 1; y < th; ++y) {
 		for (int x = 1; x < tw; ++x) {
 			byte_t * c = &gray[y*tw+x];
@@ -204,5 +297,14 @@ int main (int argc, char * argv[])
 	printf("%dx%d:%d\n", w, h, n);
 
 	
+	double ab[] =
+	{
+		5, 2, 1, -12,
+		-1, 4, 2, 20,
+		2, -3, 10, 3 
+	};
+	double res[3] = {0};
+
+	gauss(ab, res, 3);
 	return 0;
 }

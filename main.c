@@ -117,10 +117,19 @@ void gauss(double * ab, double *res, int len)
 }
 
 /*
- * 高斯消元求逆
  */
-void gauss_inverse()
+void inverse(double mat[3][3], double out[3][3])
 {
+    //double det = mat[0][0] * (mat[1][1] * mat[2][2] - mat[2][1]*mat[1][2]) - mat[0][1]*(mat[1][2]*mat[2][0]-mat[2][1]*mat[1][0]) + mat[0][2]*(mat[1][0]*mat[2][1]-mat[2][0]*mat[1][1]);
+    double det = mat[0][0]*mat[1][1]*mat[2][2] + mat[0][1]*mat[1][2]*mat[2][0] + mat[0][2]*mat[1][0]*mat[2][1];
+    det -= mat[0][0]*mat[1][2]*mat[2][1] + mat[0][1]*mat[1][0]*mat[2][2] + mat[0][2]*mat[1][1]*mat[2][0];
+
+    double det_1 = 1/det;
+    double c[3][3] =
+    {
+        {mat[1][1] * mat[2][2]-mat[1][2]*mat[2][1], mat[0][1] * mat[2][2]-mat[1][2]*mat[2][1], mat[1][1] * mat[2][2]-mat[1][2]*mat[2][1]},
+    };
+    printf("%f\n", det);
 }
 
 void get_perspective_transform(vec2_t s[4], vec2_t d[4], double * res)
@@ -265,15 +274,19 @@ int main (int argc, char * argv[])
 			{tw/4*3, th/4*3},
 			{tw/4, th/4*3},
 		};
-		double c[8] = {0};
-		get_perspective_transform(src, dst, c);
+		double c[9] = {0};
+        c[8] = 1;
+        double c2[9] = {0.79, -0.24, 8378, 0.828, 4.36, 2152, 0.00041, -0.00025, 26.0338};
+		get_perspective_transform(dst, src, c);
+        inverse(c, c2);
 		byte_t * trans = (byte_t*)malloc(tw*th);
+        memset(trans, 0, tw*th);
 		for (int v = 0; v < th; ++ v) {
 			for (int u = 0; u < tw; ++ u) {
-				int x = (c[0]*u+c[1]*v+c[2])/(c[6]*u + c[7]*v + 1);
-				int y = (c[3]*u+c[4]*v+c[5])/(c[6]*u + c[7]*v + 1);
+				int x = (c[0]*u+c[1]*v+c[2])/(c[6]*u + c[7]*v +c[8]);
+				int y = (c[3]*u+c[4]*v+c[5])/(c[6]*u + c[7]*v +c[8]);
 				if (x>=0 && x < tw && y >= 0 && y < th) {
-					trans[y*tw+x] = gray[v*tw+u];
+					trans[v*tw+u] = bin[y*tw+x];
 				}
 			}
 		}

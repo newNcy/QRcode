@@ -88,11 +88,21 @@ void hough_transform(byte_t * in, int w, int h, byte_t * out);
 /*
  * 腐蚀
  */
-void erode(byte_t * in, byte_t * out, int w, int h);
+void erode(byte_t * in, byte_t * out, int w, int h, uint32_t kernel);
 /*
  * 膨胀
  */
-void dilate(byte_t * in, byte_t * out, int w, int h);
+void dilate(byte_t * in, byte_t * out, int w, int h, uint32_t kernel);
+
+/*
+ * 滤波
+ */
+typedef byte_t (*filter_t) (byte_t * pixels, int x, int y, int w, int h, void * arg_pack);
+
+void filter(byte_t * in, byte_t * out, filter_t func, int w, int h, void * args);
+
+byte_t contour_filter(byte_t * in, int x, int y, int w, int h, void *);
+
 
 void qr_regonizer_init(qr_regonizer_t * regonizer);
 void qr_regonizer_push_finder_pattern(qr_regonizer_t * regonizer, qr_finder_pattern_t finder_pattern);

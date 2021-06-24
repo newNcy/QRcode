@@ -102,7 +102,7 @@ void hough_transform(byte_t * in, int w, int h, byte_t * out)
     int c = 0;
     for (int theta = 0; theta < 180; ++theta) {
         for (int p = 0; p < maxrho; ++p) {
-            if (count[theta][p] > 200) {
+            if (count[theta][p] > 80) {
                 if (count[theta][p] > c) {
                     c = count[theta][p];
                     rtheta = theta;
@@ -115,13 +115,13 @@ void hough_transform(byte_t * in, int w, int h, byte_t * out)
                     for (int x = 0; x < w; ++ x) {
                         float y = (p-dis-x*C)/S;
                         if (y >=0 && y < h) {
-                            out[(int)y*w*3+x*3] = 255;
+                            out[(int)y*w+x] = 255;
                         }
                     }
                     for (int y = 0; y < h; ++ y) {
                         float x = (p-dis-y*S)/C;
                         if (x >=0 && x < w) {
-                            out[(int)y*w*3+(int)x*3] = 255;
+                            out[(int)y*w+(int)x] = 255;
                         }
                     }
                 line ++;
@@ -135,8 +135,58 @@ void hough_transform(byte_t * in, int w, int h, byte_t * out)
     fflush(stdout);
 }
 
-void erode(byte_t * in, byte_t * out, int w, int h)
+void erode(byte_t * in, byte_t * out, int w, int h, uint32_t kernel)
 {
+	int half = kernel/2;
+	for (int i = 0; i < h; ++ i) {
+		for (int j = 0; j < w; ++ j) {
+			byte_t m = 0xff;
+			for (int dy = -half; dy <= half; ++ dy) {
+				for (int dx = -half; dx <= half; ++ dx) {
+					int y = min(max(0, i + dy), h-1);
+					int x = min(max(0, j + dx), w-1);
+					if (in[y*w+x] < m) {
+						m = in[y*w+x];
+					}
+				}
+			}
+			out[i*w+j] = m;
+		}
+	}
+}
+
+void dilate(byte_t * in, byte_t * out, int w, int h, uint32_t kernel)
+{
+	int half = kernel/2;
+	for (int i = 0; i < h; ++ i) {
+		for (int j = 0; j < w; ++ j) {
+			byte_t m = 0;
+			for (int dy = -half; dy <= half; ++ dy) {
+				for (int dx = -half; dx <= half; ++ dx) {
+					int y = min(max(0, i + dy), h-1);
+					int x = min(max(0, j + dx), w-1);
+					if (in[y*w+x] > m) {
+						m = in[y*w+x];
+					}
+				}
+			}
+			out[i*w+j] = m;
+		}
+	}
+}
+
+void filter(byte_t * in, byte_t * out, filter_t func, int w, int h, void * args)
+{
+	for (int y = 0; y < h; ++ y) {
+		for (int x = 0; x < w; ++ x) {
+			out[y*w+x] = func(in, x, y, w, h, args);
+		}
+	}
+}
+
+byte_t contour_filter(byte_t * in, int x, int y, int w, int h, void *args)
+{
+	return  (x > 0 && y > 0 && (in[y*w+x] != in[y*w+x-1] || in[y*w+x] != in[y*w+x-w])) * 0xff;
 }
 
 
@@ -162,10 +212,8 @@ int check_finder_pattern(int r[])
 }
 
 
-int qr_regonizer_scan_finder_patterns(qr_regonizer_t * regonizer, byte_t * gray, int w, int h)
+int qr_regonizer_scan_finder_patterns(qr_regonizer_t * regonizer, byte_t * bin, int w, int h)
 {
-    byte_t * bin = (byte_t*)malloc(w*h);
-    adaptive_thresholding(gray, bin, w, h);
     for (int y = 1; y < h; ++ y) {
 		int r[5] = {0, 0, 0, 0, 1}; //record
 		int start []= {0, 0, 0,0,0};
@@ -216,7 +264,7 @@ int qr_regonizer_scan_finder_patterns(qr_regonizer_t * regonizer, byte_t * gray,
 
                     //检查竖向是否符合比例
                     
-                    if (check_finder_pattern(vr) && eq2(up_part, vr[2]-up_part)) {
+                    if (check_finder_pattern(vr) && eq0(up_part, vr[2]-up_part, 0.3)) {
                         int center_x = (x+start[0]-1)/2;
                         qr_finder_pattern_t finder_pattern = 
                         {
@@ -255,5 +303,4 @@ int qr_regonizer_scan_finder_patterns(qr_regonizer_t * regonizer, byte_t * gray,
             }
         }
     }
-    free(bin);
 }

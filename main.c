@@ -28,7 +28,7 @@ void set_pixel(byte_t * data, int w, int x, int y, byte_t r, byte_t g, byte_t b)
 }
 
 /*
- * 熟悉的软光栅 bresenham
+ * bresenham 光栅化直线
  */
 void line(byte_t *data, int w, int x0, int y0, int x1, int y1, byte_t r, byte_t g, byte_t b)
 {
@@ -65,6 +65,7 @@ void line(byte_t *data, int w, int x0, int y0, int x1, int y1, byte_t r, byte_t 
         }
     }
 }
+
 void rect(byte_t *data, int w, int x0, int y0, int x1, int y1, byte_t r, byte_t g, byte_t b) 
 {
     line(data, w, x0,y0, x1, y0, r, g, b);
@@ -79,6 +80,7 @@ void rect(byte_t *data, int w, int x0, int y0, int x1, int y1, byte_t r, byte_t 
  */
 void gauss(double * ab, double *res, int len)
 {
+	/*
 	for (int i = 0; i < len; ++ i) {
 		printf("%g*X%d", ab[i*(len+1)], len);
 		for (int j = 1; j < len; ++ j) {
@@ -86,6 +88,8 @@ void gauss(double * ab, double *res, int len)
 		}
 		printf(" = %g\n", ab[i*(len+1)+len]);
 	}
+	*/
+	//转化成上三角阵
 	for (int i = 0; i < len; ++ i) {
 		for (int j = 0; j < i; ++ j) {
 			double lead = ab[i*(len+1)+j];
@@ -106,21 +110,24 @@ void gauss(double * ab, double *res, int len)
 
 	//回代
 	for (int i = len-1; i >=0; --i) {
-		//用第j行带入式子i
+		//用已经解出来的未知量带入当前式子
 		res[i] = ab[i*(len+1)+len];
 		for (int j = i+1; j < len; ++j) {
 			res[i] -= res[j] * ab[i*(len+1) +j];
 		}
 	}
+	/*
     for (int i = 0 ; i < len; ++i) {
         printf("%f ", res[i]);
     }
+	*/
 
 }
 
 /*
+ * 伴随矩阵求逆
  */
-void inverse(double mat[3][3], double out[3][3])
+void inverse_3x3(double mat[3][3], double out[3][3])
 {
     //double det = mat[0][0] * (mat[1][1] * mat[2][2] - mat[2][1]*mat[1][2]) - mat[0][1]*(mat[1][2]*mat[2][0]-mat[2][1]*mat[1][0]) + mat[0][2]*(mat[1][0]*mat[2][1]-mat[2][0]*mat[1][1]);
     double det = mat[0][0]*mat[1][1]*mat[2][2] + mat[0][1]*mat[1][2]*mat[2][0] + mat[0][2]*mat[1][0]*mat[2][1];
@@ -129,11 +136,21 @@ void inverse(double mat[3][3], double out[3][3])
     double det_1 = 1/det;
     double c[3][3] =
     {
-        {mat[1][1] * mat[2][2]-mat[1][2]*mat[2][1], mat[0][1] * mat[2][2]-mat[1][2]*mat[2][1], mat[1][1] * mat[2][2]-mat[1][2]*mat[2][1]},
+        {mat[1][1] * mat[2][2]-mat[2][1]*mat[1][2], -(mat[1][0] * mat[2][2]-mat[2][0]*mat[1][2]), mat[1][0] * mat[2][1]-mat[1][1]*mat[2][0]},
+        {-(mat[0][1] * mat[2][2]-mat[2][1]*mat[0][2]), mat[0][0] * mat[2][2]-mat[2][0]*mat[0][2], -(mat[0][0] * mat[2][1]-mat[2][0]*mat[1][1])},
+        {mat[0][1] * mat[1][2]-mat[1][1]*mat[0][2], -(mat[0][0] * mat[1][2]-mat[1][0]*mat[0][2]), mat[0][0] * mat[1][1]-mat[1][0]*mat[0][1]}
     };
-    printf("%f\n", det);
+	for (int i = 0; i < 3; ++ i) {
+		for (int j = 0; j < 3; ++ j) {
+			out[i][j] = c[j][i] * det_1;
+		}
+	}
+
 }
 
+/*
+ * Ax = b，把常矩阵b转化成常向量,然后高斯消元
+ */
 void get_perspective_transform(vec2_t s[4], vec2_t d[4], double * res)
 {
 	double ab [] = 
@@ -163,7 +180,7 @@ int main (int argc, char * argv[])
 	*/
 
 	int w, h, n;
-	byte_t * data = stbi_load("../qrs/a.jpg", &w, &h, &n, 0);
+	byte_t * data = stbi_load("../qrs/e.jpg", &w, &h, &n, 0);
 	int max_w = 512;
 	int tw = w>max_w?max_w:w, th = (int)(h * tw*1.0/w);
 	byte_t * pro = (byte_t*)malloc(tw*th*n);
@@ -199,7 +216,7 @@ int main (int argc, char * argv[])
     
     qr_regonizer_t regonizer;
     qr_regonizer_init(&regonizer);
-    qr_regonizer_scan_finder_patterns(&regonizer, gray, tw, th);
+    qr_regonizer_scan_finder_patterns(&regonizer, bin, tw, th);
 
     rect_t area = {{tw,th},{0,0}};
     printf("found finder %d patterns\n", regonizer.finder_patterns.size);
@@ -215,14 +232,11 @@ int main (int argc, char * argv[])
         set_pixel(pro, tw, x, y, 255, 0, 0);
         line(pro, tw, x-b, y, x+b, y, !f->center_dark*255, f->center_dark*255, 0);
         line(pro, tw, x, y-b, x, y+b, !f->center_dark*255, f->center_dark*255, 0);
-        //rect(pro, tw, f->min[0], f->min[1], f->max[0], f->max[1], 0, 255, 0);
-        //line(pro, tw, f->center[0], f->min[1], f->center[0], f->max[1], !f->center_dark*255, f->center_dark*255, 0);
-        set_pixel(pro, tw, f->min.x, f->center.y, 0, 255, 0);
+        
+		set_pixel(pro, tw, f->min.x, f->center.y, 0, 255, 0);
         set_pixel(pro, tw, f->max.x, f->center.y, 0, 255, 0);
         set_pixel(pro, tw, f->center.x, f->min.y, 0, 255, 0);
         set_pixel(pro, tw, f->center.x, f->max.y, 0, 255, 0);
-        //line(pro, tw, f->min[0], f->center[1], f->max[0], f->center[1], !f->center_dark*255, f->center_dark*255, 0);
-        //line(pro, tw, f->min[0], f->center[1], f->max[0], f->center[1], !f->center_dark*255, f->center_dark*255, 0);
     }
 
     //rect(pro, tw, area.min.x, area.min.y, area.max.x, area.max.y, 255,0,0);
@@ -276,20 +290,15 @@ int main (int argc, char * argv[])
 			{tw/4*3, th/4*3},
 			{tw/4, th/4*3},
 		};
-        /*
-		double c[9] = {0};
-        c[8] = 1;
-        double c2[9] = {0.79, -0.24, 8378, 0.828, 4.36, 2152, 0.00041, -0.00025, 26.0338};
-		get_perspective_transform(src, dst, c);
-        inverse(c, c2);
-        */
-        double c[] = {
-        0.221901	,-0.009565,	321.049318,
-0.031149	,0.171227	,82.508858,
-0	,-0.000009	,0.998195
-        };
+		double c0[9] = {0};
+        c0[8] = 1;
+        double c[9] = {0};
+		//计算透视变换
+		get_perspective_transform(src, dst, c0);
+        inverse_3x3(c0, c);
 		byte_t * trans = (byte_t*)malloc(tw*th);
-        memset(trans, 0, tw*th);
+		byte_t * trans2 = (byte_t*)malloc(tw*th);
+		byte_t * trans3 = (byte_t*)malloc(tw*th);
 		for (int v = 0; v < th; ++ v) {
 			for (int u = 0; u < tw; ++ u) {
 				int x = (c[0]*u+c[1]*v+c[2])/(c[6]*u + c[7]*v +c[8]);
@@ -299,34 +308,26 @@ int main (int argc, char * argv[])
 				}
 			}
 		}
+		uint32_t kernel = 31;
+		erode(trans, trans2, tw, th, kernel);
+		dilate(trans2, trans3, tw, th, kernel);
+
+		filter(trans3, contour, contour_filter, tw, th, nullptr);
+
+		byte_t * trans4 = (byte_t*)malloc(tw*th);
+		memset(trans4, 0, tw*th);
+		hough_transform(contour, tw, th, trans4);
+		stbi_write_png("trans4.png", tw, th, 1, trans4, tw);
 		stbi_write_png("trans.png", tw, th, 1, trans, tw);
+		stbi_write_png("trans2.png", tw, th, 1, trans2, tw);
+		stbi_write_png("trans3.png", tw, th, 1, trans3, tw);
     }
 	adaptive_thresholding(gray, gray, tw, th);
-	for (int y = 1; y < th; ++y) {
-		for (int x = 1; x < tw; ++x) {
-			byte_t * c = &gray[y*tw+x];
-			byte_t * co = &contour[y*tw+x];
-			if (*c != *(c-1) || *c != *(c-tw)) {
-				*co = 255;
-			}
-		}
-	}
-    //hough_transform(contour, tw, th, pro);
-	stbi_write_png("contour.png", tw, th, 1, contour, tw);
+    hough_transform(contour, tw, th, pro);
 	stbi_write_png("finder.png", tw, th, 1, finder, tw);
 
 	stbi_write_png("qr2.png", tw, th, 3, pro, tw*n);
 	printf("%dx%d:%d\n", w, h, n);
 
-	
-	double ab[] =
-	{
-		5, 2, 1, -12,
-		-1, 4, 2, 20,
-		2, -3, 10, 3 
-	};
-	double res[3] = {0};
-
-	gauss(ab, res, 3);
 	return 0;
 }
